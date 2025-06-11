@@ -86,10 +86,11 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
           setSubmissionId(subId);
           form.reset({ reasoning: docData.reasoning, solution: docData.answer });
           if (docData.aiFeedback) setAiFeedback(docData.aiFeedback);
+          // Retain tutor feedback if it exists on the submission
         } else {
           setSubmittedAnswer(null);
           setSubmissionId(null);
-          form.reset({ reasoning: '', solution: '' }); // Reset form if no submission found
+          form.reset({ reasoning: '', solution: '' }); 
           setAiFeedback(null);
         }
       }, (error) => {
@@ -114,66 +115,84 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
     }
 
     setIsSubmitting(true);
-    setAiFeedback(null);
+    setAiFeedback(null); // Clear previous AI feedback from UI
 
-    const submissionData: Omit<Submission, 'id' | 'timestamp'> & { timestamp: any } = {
-      lessonId: lesson.id,
-      lessonTitle: lesson.title,
-      subject: lesson.subject,
-      studentId: user.uid,
-      studentName: user.fullName || user.email || "Anonymous",
-      reasoning: data.reasoning,
-      answer: data.solution,
-      status: 'submitted', // Default status
-      timestamp: serverTimestamp(),
-      tutorFeedback: submittedAnswer?.tutorFeedback || undefined, // Preserve existing tutor feedback if any
-      aiFeedback: undefined // Clear old AI feedback on new submission
-    };
-    
     let currentSubmissionId = submissionId;
-
+    
     try {
+      let payloadForFirestore: Partial<Submission> & { timestamp: any };
+
       if (submissionId) {
-        // Update existing submission
+        // This is an UPDATE to an existing submission
+        payloadForFirestore = {
+          reasoning: data.reasoning,
+          answer: data.solution,
+          status: 'submitted', // Reset status
+          timestamp: serverTimestamp(), // Update timestamp
+          aiFeedback: null, // Explicitly clear AI feedback in Firestore for regeneration
+        };
+        // Preserve existing tutor feedback if it was 'reviewed' and exists
+        if (submittedAnswer?.status === 'reviewed' && typeof submittedAnswer.tutorFeedback === 'string') {
+          payloadForFirestore.tutorFeedback = submittedAnswer.tutorFeedback;
+        } else if (submittedAnswer && Object.prototype.hasOwnProperty.call(submittedAnswer, 'tutorFeedback') && submittedAnswer.tutorFeedback === null) {
+           payloadForFirestore.tutorFeedback = null; // Preserve explicit null
+        }
+        // If tutorFeedback was undefined on submittedAnswer or status wasn't reviewed, it's omitted from payload.
+
         const submissionRef = doc(db, "submissions", submissionId);
-        await updateDoc(submissionRef, {
-          ...submissionData,
-          status: 'submitted', // Reset status to submitted on update
-          tutorFeedback: submittedAnswer?.status === 'reviewed' ? submittedAnswer.tutorFeedback : undefined, // Preserve tutor feedback only if it was reviewed
-          aiFeedback: undefined, // Clear AI feedback on resubmission before new one is generated
-          timestamp: serverTimestamp() // Update timestamp
-        });
+        await updateDoc(submissionRef, payloadForFirestore);
         console.log("Submission updated:", submissionId);
         toast({ title: "Answer Updated!", description: "Your answer has been updated.", className: "bg-brand-green text-white" });
       } else {
-        // Add new submission
-        const docRef = await addDoc(collection(db, "submissions"), submissionData);
+        // This is a NEW submission (addDoc)
+        payloadForFirestore = {
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+          subject: lesson.subject,
+          studentId: user.uid,
+          studentName: user.fullName || user.email || "Anonymous Student",
+          reasoning: data.reasoning,
+          answer: data.solution,
+          status: 'submitted',
+          timestamp: serverTimestamp(),
+          // tutorFeedback and aiFeedback are omitted by default for new submissions,
+          // as they are not defined at this point.
+        };
+        const docRef = await addDoc(collection(db, "submissions"), payloadForFirestore);
         currentSubmissionId = docRef.id;
         setSubmissionId(docRef.id); // Store new submission ID
         console.log("Submission added with ID:", docRef.id);
         toast({ title: "Answer Submitted!", description: "Your answer has been saved.", className: "bg-brand-green text-white" });
       }
 
-      setAiFeedbackLoading(true);
-      const aiResult = await getAIFeedback({
-        lessonTitle: lesson.title,
-        studentAnswer: data.solution,
-        correctSolution: lesson.exampleSolution,
-        studentReasoning: data.reasoning,
-        subject: lesson.subject as SubjectName,
-      });
+      // Common: AI Feedback Generation
+      if (currentSubmissionId) {
+        setAiFeedbackLoading(true);
+        const aiResult = await getAIFeedback({
+          lessonTitle: lesson.title,
+          studentAnswer: data.solution,
+          correctSolution: lesson.exampleSolution,
+          studentReasoning: data.reasoning,
+          subject: lesson.subject as SubjectName, // Already asserted by Lesson type
+        });
 
-      if (aiResult.success && aiResult.feedback && currentSubmissionId) {
-        setAiFeedback(aiResult.feedback);
-        const submissionToUpdateRef = doc(db, "submissions", currentSubmissionId);
-        await updateDoc(submissionToUpdateRef, { aiFeedback: aiResult.feedback });
-        toast({ title: "AI Feedback Received!", description: "Check the AI feedback section below." });
-      } else if (aiResult.error) {
-        toast({ title: "AI Feedback Error", description: aiResult.error, variant: "destructive" });
+        if (aiResult.success && aiResult.feedback) {
+          setAiFeedback(aiResult.feedback); // Update UI
+          const submissionToUpdateRef = doc(db, "submissions", currentSubmissionId);
+          await updateDoc(submissionToUpdateRef, { aiFeedback: aiResult.feedback }); // Update Firestore with AI feedback
+          toast({ title: "AI Feedback Received!", description: "Check the AI feedback section below." });
+        } else if (aiResult.error) {
+          toast({ title: "AI Feedback Error", description: aiResult.error, variant: "destructive" });
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting/updating answer:", error);
-      toast({ title: "Submission Error", description: "Could not save your answer.", variant: "destructive" });
+      // Check if it's a FirebaseError and log specific details
+      if (error.name === 'FirebaseError') {
+        console.error("Firebase Error Code:", error.code);
+        console.error("Firebase Error Message:", error.message);
+      }
+      toast({ title: "Submission Error", description: `Could not save your answer. ${error.message || ''}`, variant: "destructive" });
     } finally {
       setAiFeedbackLoading(false);
       setIsSubmitting(false);
@@ -182,9 +201,9 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
   
   const formatSubmissionTimestamp = (timestamp: Submission['timestamp']) => {
     if (!timestamp) return 'N/A';
-    if (typeof timestamp === 'string') { // ISO string
+    if (typeof timestamp === 'string') { 
         return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
-    } else if (timestamp instanceof Timestamp) { // Firestore Timestamp
+    } else if (timestamp instanceof Timestamp) { 
         return formatDistanceToNow(timestamp.toDate(), { addSuffix: true });
     }
     return 'Invalid date';
@@ -345,3 +364,5 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
 };
 
 export default LessonDetailClient;
+
+    
