@@ -39,23 +39,21 @@ export default function SubjectBranchesPage({ params }: SubjectPageParams) {
       {branches.length > 0 ? (
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {branches.map((branch: LessonBranch) => (
-            <Link key={branch.id} href={`/lessons/${subjectName.toLowerCase()}/${branch.name.toLowerCase().replace(/\s+/g, '-')}`} legacyBehavior>
-              <a className="block group">
-                <Card className="shadow-md hover:shadow-lg transition-all duration-300 rounded-lg h-full flex flex-col items-center text-center p-6 hover:border-brand-purple-blue border-2 border-transparent">
-                  <CardHeader className="items-center p-2">
-                    <FolderOpen className="h-10 w-10 text-brand-purple-blue mb-2" />
-                    <CardTitle className="font-headline text-xl text-brand-navy group-hover:text-brand-purple-blue transition-colors">
-                      {branch.name}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex-grow mt-2">
-                     <p className="text-sm text-muted-foreground">Explore lessons in {branch.name}.</p>
-                  </CardContent>
-                  <div className="mt-auto text-brand-purple-blue font-semibold flex items-center group-hover:underline text-sm">
-                    View Lessons <ArrowRight className="ml-1 h-3 w-3" />
-                  </div>
-                </Card>
-              </a>
+            <Link key={branch.id} href={`/lessons/${subjectName.toLowerCase()}/${branch.name.toLowerCase().replace(/\s+/g, '-')}`} className="block group">
+              <Card className="shadow-md hover:shadow-lg transition-all duration-300 rounded-lg h-full flex flex-col items-center text-center p-6 hover:border-brand-purple-blue border-2 border-transparent">
+                <CardHeader className="items-center p-2">
+                  <FolderOpen className="h-10 w-10 text-brand-purple-blue mb-2" />
+                  <CardTitle className="font-headline text-xl text-brand-navy group-hover:text-brand-purple-blue transition-colors">
+                    {branch.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex-grow mt-2">
+                    <p className="text-sm text-muted-foreground">Explore lessons in {branch.name}.</p>
+                </CardContent>
+                <div className="mt-auto text-brand-purple-blue font-semibold flex items-center group-hover:underline text-sm">
+                  View Lessons <ArrowRight className="ml-1 h-3 w-3" />
+                </div>
+              </Card>
             </Link>
           ))}
         </section>

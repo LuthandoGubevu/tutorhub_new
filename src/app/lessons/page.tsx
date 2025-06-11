@@ -23,23 +23,21 @@ export default function LessonLibraryPage() {
 
       <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {subjects.map((subject) => (
-          <Link key={subject.name} href={`/lessons/${subject.name.toLowerCase()}`} legacyBehavior>
-            <a className="block group">
-              <Card className="shadow-lg hover:shadow-xl transition-all duration-300 rounded-lg h-full flex flex-col items-center text-center p-8 hover:border-brand-purple-blue border-2 border-transparent">
-                <CardHeader className="items-center">
-                  {subjectIcons[subject.name]}
-                  <CardTitle className="font-headline text-2xl text-brand-navy mt-4 group-hover:text-brand-purple-blue transition-colors">
-                    {subject.name}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  <p className="text-muted-foreground">{subject.description}</p>
-                </CardContent>
-                <div className="mt-4 text-brand-purple-blue font-semibold flex items-center group-hover:underline">
-                  View Branches <ArrowRight className="ml-2 h-4 w-4" />
-                </div>
-              </Card>
-            </a>
+          <Link key={subject.name} href={`/lessons/${subject.name.toLowerCase()}`} className="block group">
+            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 rounded-lg h-full flex flex-col items-center text-center p-8 hover:border-brand-purple-blue border-2 border-transparent">
+              <CardHeader className="items-center">
+                {subjectIcons[subject.name]}
+                <CardTitle className="font-headline text-2xl text-brand-navy mt-4 group-hover:text-brand-purple-blue transition-colors">
+                  {subject.name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-grow">
+                <p className="text-muted-foreground">{subject.description}</p>
+              </CardContent>
+              <div className="mt-4 text-brand-purple-blue font-semibold flex items-center group-hover:underline">
+                View Branches <ArrowRight className="ml-2 h-4 w-4" />
+              </div>
+            </Card>
           </Link>
         ))}
       </section>
