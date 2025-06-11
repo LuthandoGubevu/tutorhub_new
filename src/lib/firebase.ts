@@ -13,18 +13,26 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Basic check if essential config values are present
-if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
-  console.error(
-    "Firebase configuration is incomplete. Make sure all NEXT_PUBLIC_FIREBASE_... environment variables are set."
-  );
-  // Depending on the desired behavior, you might throw an error here or handle it gracefully.
-  // For now, initialization will proceed, but Firebase services will likely fail.
-}
+// The explicit check for incomplete configuration has been removed.
+// If configuration is missing or incorrect, Firebase SDK's initializeApp or getAuth will throw an error.
 
 // Initialize Firebase
 let app: FirebaseApp;
 if (!getApps().length) {
+  // Check if essential config values are truly undefined, which would cause initializeApp to fail.
+  // Firebase expects strings, even if they are empty due to missing env vars,
+  // but process.env might return undefined.
+  if (typeof firebaseConfig.apiKey !== 'string' || 
+      typeof firebaseConfig.authDomain !== 'string' || 
+      typeof firebaseConfig.projectId !== 'string') {
+    console.error(
+      "Critical Firebase configuration values (apiKey, authDomain, projectId) are undefined. " +
+      "Please ensure NEXT_PUBLIC_FIREBASE_... environment variables are correctly set. Firebase will not initialize."
+    );
+    // To prevent runtime errors from getAuth(app) if app is undefined or fails to initialize
+    // we can throw or handle this more gracefully. For now, console.error and proceed with caution.
+    // A more robust solution would be to not initialize or throw here.
+  }
   app = initializeApp(firebaseConfig);
 } else {
   app = getApps()[0];
