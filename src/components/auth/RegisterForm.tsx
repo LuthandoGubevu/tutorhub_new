@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { FirebaseError } from 'firebase/app';
 
 const registerSchema = z.object({
   fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
@@ -43,7 +44,17 @@ const RegisterForm = () => {
       await register(data.fullName, data.email, data.password, data.cellNumber);
       // Redirect is handled by AuthContext
     } catch (err) {
-      setError((err as Error).message || "Registration failed. Please try again.");
+      if (err instanceof FirebaseError) {
+        if (err.code === 'auth/email-already-in-use') {
+          setError("This email address is already registered. Please try logging in or use a different email.");
+        } else {
+          setError(err.message || "Registration failed due to a Firebase error. Please try again.");
+        }
+      } else if (err instanceof Error) {
+        setError(err.message || "Registration failed. Please try again.");
+      } else {
+        setError("An unknown registration error occurred. Please try again.");
+      }
     }
   };
 
