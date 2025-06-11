@@ -10,8 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        headline: ['Inter', 'sans-serif'],
+        body: ['PT Sans', 'sans-serif'],
+        headline: ['Poppins', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
@@ -65,6 +65,12 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
+        // Custom brand colors
+        'brand-navy': '#0B2942',
+        'brand-purple-blue': '#4F46E5',
+        'brand-red': '#EF4444',
+        'brand-green': '#22C55E',
+        'brand-light-bg': '#E0F2FE',
       },
       borderRadius: {
         lg: 'var(--radius)',
