@@ -18,6 +18,7 @@ import { getAIFeedback } from '@/app/actions/feedbackActions';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { mockStudentAnswers } from '@/data/mockData'; // For mock persistence
+import Link from 'next/link';
 
 const answerSchema = z.object({
   reasoning: z.string().min(10, "Reasoning must be at least 10 characters."),
@@ -275,3 +276,4 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
 };
 
 export default LessonDetailClient;
+
