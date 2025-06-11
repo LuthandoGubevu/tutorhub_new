@@ -60,9 +60,6 @@ const RegisterForm = () => {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-         <Alert className="mb-4 bg-blue-50 border-blue-200 text-blue-700">
-            <AlertDescription>This platform uses Firebase Authentication (mocked for this demo).</AlertDescription>
-        </Alert>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="fullName">Full Name</Label>
