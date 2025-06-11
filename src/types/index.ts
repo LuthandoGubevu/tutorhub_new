@@ -5,6 +5,7 @@ export interface User {
   email: string | null; // Firebase email can be null
   photoURL?: string | null; // Standard Firebase property
   cellNumber?: string; // Custom, not directly in Firebase auth user object unless set as phone number
+  isAdmin?: boolean; // Flag to identify admin users
 }
 
 export type SubjectName = 'Mathematics' | 'Physics';

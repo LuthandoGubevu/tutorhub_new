@@ -1,3 +1,4 @@
+
 // src/components/auth/AuthContext.tsx
 "use client";
 
@@ -30,6 +31,8 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+const ADMIN_EMAIL = "gugunkululo@gmail.com";
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +47,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: firebaseUser.email,
           fullName: firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
+          isAdmin: firebaseUser.email === ADMIN_EMAIL,
           // cellNumber is not directly available on firebaseUser, would need separate handling if crucial
         };
         setUser(appUser);
@@ -59,22 +63,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email?: string, password?: string, isGoogle?: boolean) => {
     setLoading(true);
     try {
+      let loggedInUser: FirebaseUser | null = null;
       if (isGoogle) {
         const provider = new GoogleAuthProvider();
-        await signInWithPopup(auth, provider);
-        // onAuthStateChanged will handle setting the user
+        const result = await signInWithPopup(auth, provider);
+        loggedInUser = result.user;
       } else if (email && password) {
-        await signInWithEmailAndPassword(auth, email, password);
-        // onAuthStateChanged will handle setting the user
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        loggedInUser = result.user;
       } else {
         throw new Error("Email/password or Google sign-in method must be chosen.");
       }
-      router.push('/dashboard');
+      
+      // onAuthStateChanged will handle setting the user state, including isAdmin
+      // Redirect based on admin status after successful login handled by useEffect
+      if (loggedInUser?.email === ADMIN_EMAIL) {
+        router.push('/tutor/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
+
     } catch (error) {
       console.error("Login error:", error);
-      // Handle specific error codes (e.g., auth/wrong-password, auth/user-not-found)
-      // For now, a generic error, but you might want to pass this to the form
-      throw error; // Re-throw to be caught by the form
+      throw error; 
     } finally {
       setLoading(false);
     }
@@ -84,7 +95,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
     try {
       await signOut(auth);
-      // onAuthStateChanged will set user to null
       router.push('/login');
     } catch (error) {
       console.error("Logout error:", error);
@@ -100,44 +110,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (userCredential.user) {
         await updateProfile(userCredential.user, {
           displayName: fullName,
-          // photoURL can be set here if available
         });
-         // Manually update our app's user state immediately after profile update
-        const updatedFirebaseUser = auth.currentUser; // Refresh to get the latest profile
+        const updatedFirebaseUser = auth.currentUser; 
         if (updatedFirebaseUser) {
            const appUser: User = {
             uid: updatedFirebaseUser.uid,
             email: updatedFirebaseUser.email,
             fullName: updatedFirebaseUser.displayName,
             photoURL: updatedFirebaseUser.photoURL,
-            cellNumber: cellNumber // Keep cellNumber from form if provided
+            cellNumber: cellNumber,
+            isAdmin: updatedFirebaseUser.email === ADMIN_EMAIL,
           };
           setUser(appUser);
         }
       }
-      // cellNumber would typically be saved to Firestore here, linked by userCredential.user.uid
-      // e.g., await setDoc(doc(db, "users", userCredential.user.uid), { cellNumber });
       router.push('/dashboard');
     } catch (error) {
       console.error("Registration error:", error);
-      // Handle specific error codes (e.g., auth/email-already-in-use)
-      throw error; // Re-throw to be caught by the form
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  // Redirect unauthenticated users
-   useEffect(() => {
-    if (!loading && !user) {
-      const publicPaths = ['/', '/login', '/register'];
-      const isPublicLessonPath = pathname.startsWith('/lesson/') || pathname === '/lessons' || /^\/lessons\/[^/]+\/?([^/]+\/?)?$/.test(pathname);
+  useEffect(() => {
+    if (loading) return;
 
-      if (!publicPaths.includes(pathname) && !isPublicLessonPath && pathname !== '/tutor/dashboard') {
-        if (pathname !== '/tutor/dashboard') { 
-             router.push('/login');
-        }
+    const publicPaths = ['/', '/login', '/register'];
+    const isPublicLessonPath = pathname.startsWith('/lesson/') || pathname === '/lessons' || /^\/lessons\/[^/]+\/?([^/]+\/?)?$/.test(pathname);
+
+    if (pathname === '/tutor/dashboard') {
+      if (!user) {
+        router.push('/login'); // Not logged in, redirect to login
+      } else if (!user.isAdmin) { // Logged in but not admin
+        router.push('/dashboard'); // Redirect to student dashboard
       }
+      // If user exists and is admin, they are allowed.
+    } else if (!publicPaths.includes(pathname) && !isPublicLessonPath) {
+      // This is a protected route (not public, not lesson, not tutor dashboard which is handled above)
+      if (!user) {
+        router.push('/login'); // Not logged in, redirect to login
+      }
+      // If user is logged in (and it's not an admin trying to access a non-admin student page, or a student on a student page), they are allowed.
     }
   }, [user, loading, pathname, router]);
 

@@ -1,8 +1,9 @@
+
 // src/components/layout/Header.tsx
 "use client";
 
 import Link from 'next/link';
-import { Atom, BookOpen, CalendarDays, LayoutDashboard, LogIn, LogOut, UserPlus } from 'lucide-react';
+import { Atom, BookOpen, CalendarDays, LayoutDashboard, LogIn, LogOut, UserPlus, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { usePathname } from 'next/navigation';
@@ -12,9 +13,10 @@ const Header = () => {
   const pathname = usePathname();
 
   const navLinks = [
-    { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="mr-2 h-4 w-4" />, authRequired: true },
-    { href: '/lessons', label: 'Lessons', icon: <BookOpen className="mr-2 h-4 w-4" />, authRequired: true },
-    { href: '/book-session', label: 'Book Session', icon: <CalendarDays className="mr-2 h-4 w-4" />, authRequired: true },
+    { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: false },
+    { href: '/lessons', label: 'Lessons', icon: <BookOpen className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: false },
+    { href: '/book-session', label: 'Book Session', icon: <CalendarDays className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: false },
+    { href: '/tutor/dashboard', label: 'Tutor Admin', icon: <ShieldCheck className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: true },
   ];
 
   return (
@@ -25,7 +27,14 @@ const Header = () => {
           <span className="font-headline text-2xl font-semibold">TutorHub</span>
         </Link>
         <nav className="hidden md:flex items-center space-x-2">
-          {navLinks.filter(link => !link.authRequired || (link.authRequired && user)).map(link => (
+          {navLinks.filter(link => {
+            if (!link.authRequired) return true; // Public links
+            if (link.authRequired && !user) return false; // Auth required but no user
+            if (link.adminOnly && !user?.isAdmin) return false; // Admin link but not admin user
+            if (!link.adminOnly && user?.isAdmin && link.href !== '/tutor/dashboard' && link.href !== '/dashboard') return false; // Admin user should only see admin and general dashboard
+            if (!link.adminOnly && user?.isAdmin && link.href === '/dashboard') return true; // Admin can see student dashboard as a general link too (optional)
+            return true; // Show link
+          }).map(link => (
             <Button key={link.href} variant={pathname === link.href ? "secondary" : "ghost"} className="text-white hover:bg-brand-purple-blue/80 hover:text-white" asChild>
               <Link href={link.href} className="flex items-center">
                 {link.icon}
@@ -39,7 +48,7 @@ const Header = () => {
             <div className="h-8 w-20 animate-pulse bg-gray-600 rounded"></div>
           ) : user ? (
             <>
-              <span className="text-sm hidden sm:inline">Welcome, {(user.fullName || 'User').split(' ')[0]}!</span>
+              <span className="text-sm hidden sm:inline">Welcome, {(user.fullName || 'User').split(' ')[0]}! {user.isAdmin && "(Admin)"}</span>
               <Button variant="outline" size="sm" onClick={logout} className="border-brand-purple-blue text-brand-purple-blue hover:bg-brand-purple-blue hover:text-white">
                 <LogOut className="mr-2 h-4 w-4" /> Logout
               </Button>
