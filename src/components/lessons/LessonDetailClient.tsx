@@ -17,7 +17,7 @@ import { Loader2, CheckCircle, AlertTriangle, MessageSquare } from 'lucide-react
 import { getAIFeedback } from '@/app/actions/feedbackActions';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { mockStudentAnswers } from '@/data/mockData'; // For mock persistence
+import { mockStudentAnswers, saveStudentAnswersToLocalStorage } from '@/data/mockData'; // For mock persistence
 import Link from 'next/link';
 
 const answerSchema = z.object({
@@ -51,7 +51,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
   useEffect(() => {
     if (user) {
         const existingAnswer = mockStudentAnswers.find(
-            (ans) => ans.lessonId === lesson.id && ans.studentId === user.uid // Changed to user.uid
+            (ans) => ans.lessonId === lesson.id && ans.studentId === user.uid
         );
         if (existingAnswer) {
             setSubmittedAnswer(existingAnswer);
@@ -75,20 +75,21 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
       lessonId: lesson.id,
       lessonTitle: lesson.title,
       subject: lesson.subject,
-      studentId: user.uid, // Changed from user.id to user.uid
+      studentId: user.uid,
       reasoning: data.reasoning,
       solution: data.solution,
       submittedAt: new Date().toISOString(),
       status: 'Awaiting Review', 
     };
     
-    const answerIndex = mockStudentAnswers.findIndex(ans => ans.lessonId === lesson.id && ans.studentId === user.uid); // Changed to user.uid
+    const answerIndex = mockStudentAnswers.findIndex(ans => ans.lessonId === lesson.id && ans.studentId === user.uid);
     if (answerIndex > -1) {
         mockStudentAnswers[answerIndex] = { ...mockStudentAnswers[answerIndex], ...newAnswer, status: 'Awaiting Review', tutorFeedback: undefined, aiFeedback: undefined };
     } else {
         mockStudentAnswers.push(newAnswer);
     }
     setSubmittedAnswer(newAnswer);
+    saveStudentAnswersToLocalStorage();
 
 
     console.log("Answer submitted:", newAnswer);
@@ -109,6 +110,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
       if (updatedAnswerIndex > -1) {
           mockStudentAnswers[updatedAnswerIndex].aiFeedback = aiFeedbackResult.feedback;
           setSubmittedAnswer(mockStudentAnswers[updatedAnswerIndex]);
+          saveStudentAnswersToLocalStorage();
       }
       toast({ title: "AI Feedback Received!", description: "Check the AI feedback section below."});
     } else {

@@ -75,13 +75,15 @@ export const lessons: Lesson[] = [
   },
 ];
 
-export const mockStudentAnswers: StudentAnswer[] = [
+const STUDENT_ANSWERS_STORAGE_KEY = 'tutorhub_student_answers_v1';
+
+const defaultStudentAnswers: StudentAnswer[] = [
   {
     id: 'ans-001',
     lessonId: 'math-alg-001',
     lessonTitle: 'Lesson 1',
     subject: 'Mathematics',
-    studentId: 'student123',
+    studentId: 'student123', // This is a mock ID for default data
     reasoning: 'I combined like terms. For the degree, I looked at the highest power of x.',
     solution: '4x^2 + 2x - 7, degree is 2',
     submittedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
@@ -94,13 +96,50 @@ export const mockStudentAnswers: StudentAnswer[] = [
     lessonId: 'phys-mech-001',
     lessonTitle: 'Lesson 4',
     subject: 'Physics',
-    studentId: 'student123',
+    studentId: 'student123', // This is a mock ID for default data
     reasoning: 'Used F=ma.',
     solution: 'a = 4 m/s^2',
     submittedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
     status: 'Awaiting Review',
   },
 ];
+
+export let mockStudentAnswers: StudentAnswer[];
+
+if (typeof window !== 'undefined') {
+  const storedAnswers = localStorage.getItem(STUDENT_ANSWERS_STORAGE_KEY);
+  if (storedAnswers) {
+    try {
+      mockStudentAnswers = JSON.parse(storedAnswers);
+      if (!Array.isArray(mockStudentAnswers)) {
+        console.warn("Stored student answers is not an array, resetting to default.");
+        mockStudentAnswers = [...defaultStudentAnswers];
+        localStorage.setItem(STUDENT_ANSWERS_STORAGE_KEY, JSON.stringify(mockStudentAnswers));
+      }
+    } catch (error) {
+      console.error("Error parsing student answers from localStorage, resetting to default:", error);
+      mockStudentAnswers = [...defaultStudentAnswers];
+      localStorage.setItem(STUDENT_ANSWERS_STORAGE_KEY, JSON.stringify(mockStudentAnswers));
+    }
+  } else {
+    mockStudentAnswers = [...defaultStudentAnswers];
+    localStorage.setItem(STUDENT_ANSWERS_STORAGE_KEY, JSON.stringify(mockStudentAnswers));
+  }
+} else {
+  // Fallback for SSR or environments where window is not defined
+  mockStudentAnswers = [...defaultStudentAnswers];
+}
+
+export function saveStudentAnswersToLocalStorage() {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(STUDENT_ANSWERS_STORAGE_KEY, JSON.stringify(mockStudentAnswers));
+    } catch (error) {
+      console.error("Error saving student answers to localStorage:", error);
+    }
+  }
+}
+
 
 export const mockBookings: Booking[] = [
     {

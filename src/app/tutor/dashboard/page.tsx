@@ -6,48 +6,92 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Clock, Eye, FileText, Users } from 'lucide-react';
-import { mockStudentAnswers, getLessonById } from '@/data/mockData'; // Re-use student answers for demo
+import { mockStudentAnswers, getLessonById, saveStudentAnswersToLocalStorage } from '@/data/mockData'; // Re-use student answers for demo
 import type { StudentAnswer } from '@/types';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
-// Mock metrics
-const totalSubmissions = mockStudentAnswers.length;
-const pendingReviews = mockStudentAnswers.filter(ans => ans.status === 'Awaiting Review').length;
-const reviewedCount = mockStudentAnswers.filter(ans => ans.status === 'Reviewed').length;
-const activeStudents = new Set(mockStudentAnswers.map(ans => ans.studentId)).size; // Unique students
-
-const metricCards = [
-  { title: 'Total Submissions', value: totalSubmissions, icon: <FileText className="h-5 w-5 text-muted-foreground" /> },
-  { title: 'Pending Reviews', value: pendingReviews, icon: <Clock className="h-5 w-5 text-muted-foreground" /> },
-  { title: 'Reviewed Count', value: reviewedCount, icon: <CheckCircle className="h-5 w-5 text-muted-foreground" /> },
-  { title: 'Active Students', value: activeStudents, icon: <Users className="h-5 w-5 text-muted-foreground" /> },
-];
 
 const TutorDashboardPage = () => {
   const [selectedSubmission, setSelectedSubmission] = useState<StudentAnswer | null>(null);
   const [tutorComment, setTutorComment] = useState('');
   const { toast } = useToast();
+  
+  // Local state for metrics to ensure they re-render if mockStudentAnswers changes.
+  // This is a simple way; more complex apps might use a state management library or context.
+  const [metrics, setMetrics] = useState({
+    totalSubmissions: 0,
+    pendingReviews: 0,
+    reviewedCount: 0,
+    activeStudents: 0,
+  });
+
+  const [submissions, setSubmissions] = useState<StudentAnswer[]>([]);
+
+  useEffect(() => {
+    // Function to update metrics and submissions from mockStudentAnswers
+    const updateDashboardData = () => {
+      const total = mockStudentAnswers.length;
+      const pending = mockStudentAnswers.filter(ans => ans.status === 'Awaiting Review').length;
+      const reviewed = mockStudentAnswers.filter(ans => ans.status === 'Reviewed').length;
+      const students = new Set(mockStudentAnswers.map(ans => ans.studentId)).size;
+      
+      setMetrics({
+        totalSubmissions: total,
+        pendingReviews: pending,
+        reviewedCount: reviewed,
+        activeStudents: students,
+      });
+      setSubmissions([...mockStudentAnswers]); // Create a new array to trigger re-render
+    };
+
+    updateDashboardData(); // Initial update
+
+    // Optional: if mockStudentAnswers could change from other places while page is open
+    // and you need live updates without localStorage as the sole trigger.
+    // For this localStorage approach, refresh or navigation will show changes.
+    // const interval = setInterval(updateDashboardData, 5000); // Poll every 5 seconds
+    // return () => clearInterval(interval);
+
+  }, []); // Empty dependency array means this runs once on mount and on data change if re-triggered by parent.
+
+  const metricCardsData = [
+    { title: 'Total Submissions', value: metrics.totalSubmissions, icon: <FileText className="h-5 w-5 text-muted-foreground" /> },
+    { title: 'Pending Reviews', value: metrics.pendingReviews, icon: <Clock className="h-5 w-5 text-muted-foreground" /> },
+    { title: 'Reviewed Count', value: metrics.reviewedCount, icon: <CheckCircle className="h-5 w-5 text-muted-foreground" /> },
+    { title: 'Active Students', value: metrics.activeStudents, icon: <Users className="h-5 w-5 text-muted-foreground" /> },
+  ];
+
 
   const handleReviewSubmit = () => {
     if (!selectedSubmission || !tutorComment) {
         toast({title: "Error", description: "Please enter a comment.", variant: "destructive"});
         return;
     }
-    // Mock update submission
+    
     const index = mockStudentAnswers.findIndex(s => s.id === selectedSubmission.id);
     if (index > -1) {
         mockStudentAnswers[index].status = 'Reviewed';
         mockStudentAnswers[index].tutorFeedback = tutorComment;
+        saveStudentAnswersToLocalStorage(); 
+        
+        // Update local state to trigger re-render
+        setSubmissions([...mockStudentAnswers]);
+        const pending = mockStudentAnswers.filter(ans => ans.status === 'Awaiting Review').length;
+        const reviewed = mockStudentAnswers.filter(ans => ans.status === 'Reviewed').length;
+        setMetrics(prevMetrics => ({
+            ...prevMetrics,
+            pendingReviews: pending,
+            reviewedCount: reviewed,
+        }));
     }
     toast({title: "Feedback Submitted", description: `Feedback for ${selectedSubmission.lessonTitle} saved.`, className: "bg-brand-green text-white"});
     setSelectedSubmission(null);
     setTutorComment('');
-    // Force re-render if necessary, or use state management
   };
 
 
@@ -61,7 +105,7 @@ const TutorDashboardPage = () => {
       </section>
 
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {metricCards.map(metric => (
+        {metricCardsData.map(metric => (
           <Card key={metric.title} className="shadow-lg rounded-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-brand-navy">{metric.title}</CardTitle>
@@ -92,7 +136,7 @@ const TutorDashboardPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockStudentAnswers.map((submission) => (
+                {submissions.map((submission) => (
                   <TableRow key={submission.id}>
                     <TableCell>Student {submission.studentId.substring(0,6)}...</TableCell>
                     <TableCell>{submission.lessonTitle}</TableCell>
@@ -104,9 +148,22 @@ const TutorDashboardPage = () => {
                     </TableCell>
                     <TableCell className="max-w-xs truncate">{submission.solution}</TableCell>
                     <TableCell className="text-right">
-                       <Dialog onOpenChange={(open) => !open && setSelectedSubmission(null)}>
+                       <Dialog onOpenChange={(open) => {
+                           if (!open) {
+                               setSelectedSubmission(null);
+                               setTutorComment(''); // Reset comment when dialog closes
+                           }
+                       }}>
                         <DialogTrigger asChild>
-                           <Button variant="outline" size="sm" onClick={() => setSelectedSubmission(submission)}>
+                           <Button variant="outline" size="sm" onClick={() => {
+                               setSelectedSubmission(submission);
+                               // If opening an already reviewed submission, prefill comment if desired, or clear for new review
+                               if (submission.status === 'Reviewed' && submission.tutorFeedback) {
+                                   setTutorComment(submission.tutorFeedback);
+                               } else {
+                                   setTutorComment('');
+                               }
+                           }}>
                             <Eye className="mr-2 h-4 w-4" /> Review
                           </Button>
                         </DialogTrigger>
@@ -114,12 +171,12 @@ const TutorDashboardPage = () => {
                         <DialogContent className="sm:max-w-2xl">
                           <DialogHeader>
                             <DialogTitle className="font-headline text-brand-navy">Review Submission: {selectedSubmission.lessonTitle}</DialogTitle>
-                            <DialogDescription>Student: {selectedSubmission.studentId}</DialogDescription>
+                            <DialogDescription>Student ID: {selectedSubmission.studentId.substring(0,10)}...</DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto px-1">
                             <Card>
                               <CardHeader><CardTitle className="text-base">Question</CardTitle></CardHeader>
-                              <CardContent><p>{getLessonById(selectedSubmission.lessonId)?.question}</p></CardContent>
+                              <CardContent><p>{getLessonById(selectedSubmission.lessonId)?.question || "Question not found."}</p></CardContent>
                             </Card>
                              <Card>
                               <CardHeader><CardTitle className="text-base">Student's Reasoning</CardTitle></CardHeader>
@@ -160,7 +217,7 @@ const TutorDashboardPage = () => {
                                 Submit Review
                             </Button>
                             )}
-                             <Button variant="outline" onClick={() => setSelectedSubmission(null)}>Close</Button>
+                             <Button variant="outline" onClick={() => {setSelectedSubmission(null); setTutorComment(''); }}>Close</Button>
                           </DialogFooter>
                         </DialogContent>
                         )}
@@ -170,6 +227,9 @@ const TutorDashboardPage = () => {
                 ))}
               </TableBody>
             </Table>
+             {submissions.length === 0 && (
+              <p className="text-center text-muted-foreground py-6">No student submissions yet.</p>
+            )}
           </CardContent>
         </Card>
       </section>
