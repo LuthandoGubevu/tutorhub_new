@@ -23,7 +23,7 @@ export const lessons: Lesson[] = [
   // Mathematics - Algebra
   {
     id: 'math-alg-001',
-    title: 'Introduction to Polynomials',
+    title: 'Lesson 1', // Updated title
     subject: 'Mathematics',
     branch: 'Algebra',
     youtubeVideoId: ' RoqueL3pVgQ', // Example video ID
@@ -33,7 +33,7 @@ export const lessons: Lesson[] = [
   },
   {
     id: 'math-alg-002',
-    title: 'Solving Linear Equations',
+    title: 'Lesson 2', // Updated title
     subject: 'Mathematics',
     branch: 'Algebra',
     youtubeVideoId: 'f15zA0PhSek',
@@ -44,7 +44,7 @@ export const lessons: Lesson[] = [
   // Mathematics - Calculus
   {
     id: 'math-calc-001',
-    title: 'Introduction to Limits',
+    title: 'Lesson 3', // Updated title
     subject: 'Mathematics',
     branch: 'Calculus',
     youtubeVideoId: ' excelencia8000',
@@ -55,7 +55,7 @@ export const lessons: Lesson[] = [
   // Physics - Mechanics
   {
     id: 'phys-mech-001',
-    title: 'Newton\'s Laws of Motion',
+    title: 'Lesson 4', // Updated title
     subject: 'Physics',
     branch: 'Mechanics',
     youtubeVideoId: 'kKKM8Y-u7ds',
@@ -65,7 +65,7 @@ export const lessons: Lesson[] = [
   },
   {
     id: 'phys-mech-002',
-    title: 'Work, Energy, and Power',
+    title: 'Lesson 5', // Updated title
     subject: 'Physics',
     branch: 'Mechanics',
     youtubeVideoId: 'PYQcpjIFnoo',
@@ -79,7 +79,7 @@ export const mockStudentAnswers: StudentAnswer[] = [
   {
     id: 'ans-001',
     lessonId: 'math-alg-001',
-    lessonTitle: 'Introduction to Polynomials',
+    lessonTitle: 'Lesson 1', // Updated to match new lesson title
     subject: 'Mathematics',
     studentId: 'student123',
     reasoning: 'I combined like terms. For the degree, I looked at the highest power of x.',
@@ -92,7 +92,7 @@ export const mockStudentAnswers: StudentAnswer[] = [
   {
     id: 'ans-002',
     lessonId: 'phys-mech-001',
-    lessonTitle: 'Newton\'s Laws of Motion',
+    lessonTitle: 'Lesson 4', // Updated to match new lesson title
     subject: 'Physics',
     studentId: 'student123',
     reasoning: 'Used F=ma.',

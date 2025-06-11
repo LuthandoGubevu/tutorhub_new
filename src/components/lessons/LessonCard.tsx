@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { Lesson } from '@/types';
-import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 
 interface LessonCardProps {
@@ -11,19 +10,10 @@ interface LessonCardProps {
 }
 
 const LessonCard: React.FC<LessonCardProps> = ({ lesson }) => {
-  const placeholderImageUrl = `https://placehold.co/600x400.png`; // Generic placeholder
-
   return (
     <Card className="flex flex-col h-full shadow-lg hover:shadow-xl transition-shadow duration-300 rounded-lg overflow-hidden">
       <CardHeader className="p-0">
-        <Image
-          src={placeholderImageUrl}
-          alt={lesson.title}
-          width={600}
-          height={300} // Adjust height for aspect ratio
-          className="object-cover w-full h-48"
-          data-ai-hint={`${lesson.subject} lesson illustration`}
-        />
+        {/* Image placeholder removed */}
       </CardHeader>
       <CardContent className="p-6 flex-grow">
         <CardTitle className="font-headline text-xl text-brand-navy mb-2">{lesson.title}</CardTitle>
