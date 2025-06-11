@@ -32,12 +32,6 @@ const Header = () => {
               </Link>
             </Button>
           ))}
-           <Button variant={pathname.startsWith("/lessons") ? "secondary" : "ghost"} className="text-white hover:bg-brand-purple-blue/80 hover:text-white" asChild>
-              <Link href="/lessons" className="flex items-center">
-                <BookOpen className="mr-2 h-4 w-4" />
-                Lessons
-              </Link>
-            </Button>
         </nav>
         <div className="flex items-center space-x-2">
           {loading ? (
@@ -51,12 +45,6 @@ const Header = () => {
             </>
           ) : (
             <>
-             <Button variant={pathname.startsWith("/lessons") ? "secondary" : "ghost"} className="text-white hover:bg-brand-purple-blue/80 hover:text-white" asChild>
-                <Link href="/lessons" className="flex items-center">
-                  <BookOpen className="mr-2 h-4 w-4" />
-                  Lessons
-                </Link>
-              </Button>
               <Button variant="ghost" className="text-white hover:bg-brand-purple-blue/80 hover:text-white" asChild>
                 <Link href="/login"><LogIn className="mr-2 h-4 w-4" />Login</Link>
               </Button>
