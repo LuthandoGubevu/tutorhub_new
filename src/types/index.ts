@@ -1,11 +1,13 @@
 
 export interface User {
-  uid: string; // Changed from id to uid
-  fullName: string | null; // Firebase displayName can be null
-  email: string | null; // Firebase email can be null
-  photoURL?: string | null; // Standard Firebase property
-  cellNumber?: string; // Custom, not directly in Firebase auth user object unless set as phone number
-  isAdmin?: boolean; // Flag to identify admin users
+  uid: string; 
+  fullName: string | null; 
+  email: string | null; 
+  photoURL?: string | null; 
+  cellNumber?: string; 
+  isAdmin?: boolean; 
+  role?: string; // Added for user role
+  createdAt?: string; // Added for creation timestamp
 }
 
 export type SubjectName = 'Mathematics' | 'Physics';
@@ -20,10 +22,10 @@ export interface Lesson {
   id: string;
   title: string;
   subject: SubjectName;
-  branch: string; // Branch name or ID
+  branch: string; 
   youtubeVideoId: string;
-  content: string; // Explanatory content, can include HTML or Markdown
-  question: string; // Equation-based question
+  content: string; 
+  question: string; 
   exampleSolution: string;
 }
 
@@ -32,10 +34,10 @@ export interface StudentAnswer {
   lessonId: string;
   lessonTitle: string;
   subject: SubjectName;
-  studentId: string; // This will store user.uid
+  studentId: string; 
   reasoning: string;
   solution: string;
-  submittedAt: string; // ISO date string
+  submittedAt: string; 
   status: 'Awaiting Review' | 'Reviewed';
   tutorFeedback?: string;
   aiFeedback?: string;
@@ -43,18 +45,18 @@ export interface StudentAnswer {
 
 export interface Booking {
   id: string;
-  userId: string; // This will store user.uid
+  userId: string; 
   subject: SubjectName;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
+  date: string; 
+  time: string; 
   confirmed: boolean;
 }
 
 export interface Feedback {
   id: string;
   lessonId: string;
-  userId: string; // This will store user.uid
-  rating: number; // 1-5
+  userId: string; 
+  rating: number; 
   comment?: string;
-  submittedAt: string; // ISO date string
+  submittedAt: string; 
 }

@@ -14,9 +14,9 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   type User as FirebaseUser,
-  type Auth as FirebaseAuthType
 } from 'firebase/auth';
-import { getFirebaseAuth } from '@/lib/firebase'; // Import the getter
+import { getFirebaseAuth, getFirestoreDb } from '@/lib/firebase'; 
+import { doc, setDoc } from "firebase/firestore"; 
 
 export interface AuthContextType {
   user: User | null;
@@ -32,7 +32,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-const ADMIN_EMAIL = "gugunkululo@gmail.com";
+const ADMIN_EMAIL = "gugunkululo@gmail.com"; 
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -43,29 +43,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const auth = getFirebaseAuth();
     if (!auth) {
-      console.warn("AuthContext: Firebase Auth not available for onAuthStateChanged listener. Retrying in 1s.");
-      // Attempt to initialize/get auth again after a short delay if it wasn't ready immediately
-      const timer = setTimeout(() => {
-        const delayedAuth = getFirebaseAuth();
-        if(delayedAuth) {
-            const unsubscribe = onAuthStateChanged(delayedAuth, handleAuthStateChange);
-            return () => unsubscribe();
-        } else {
-            console.error("AuthContext: Firebase Auth still not available after delay.");
-            setLoading(false);
-        }
-      }, 1000);
-      return () => clearTimeout(timer);
+      console.warn("AuthContext: Firebase Auth not available for onAuthStateChanged listener. Ensure Firebase is initialized on client.");
+      setLoading(false);
+      return;
     }
 
-    const handleAuthStateChange = (firebaseUser: FirebaseUser | null) => {
+    const handleAuthStateChange = async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
+        // In a real app, you might fetch extended user profile (like role) from Firestore here
+        // For now, role is only set explicitly during registration context update
         const appUser: User = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           fullName: firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
           isAdmin: firebaseUser.email === ADMIN_EMAIL,
+          // role: undefined, // Will be undefined here unless fetched or handled via custom claims
         };
         setUser(appUser);
       } else {
@@ -81,7 +74,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email?: string, password?: string, isGoogle?: boolean) => {
     const auth = getFirebaseAuth();
     if (!auth) {
-      setError("Firebase authentication service is not available. Please try again later.");
+      // setError("Firebase authentication service is not available. Please try again later."); // If setError was defined
+      console.error("Firebase auth not initialized for login.");
       throw new Error("Firebase auth not initialized for login.");
     }
     setLoading(true);
@@ -106,8 +100,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     } catch (error) {
       console.error("Login error:", error);
-      // Update to use the local setError if defined in LoginForm or pass to toast
-      // For now, re-throwing for LoginForm to catch.
       throw error; 
     } finally {
       setLoading(false);
@@ -118,7 +110,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const auth = getFirebaseAuth();
     if (!auth) {
       console.warn("Firebase auth not available for logout.");
-      setUser(null); // Clear user state
+      setUser(null); 
       router.push('/login');
       setLoading(false);
       return;
@@ -126,7 +118,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
     try {
       await signOut(auth);
-      setUser(null); // Ensure user state is cleared
+      setUser(null); 
       router.push('/login');
     } catch (error) {
       console.error("Logout error:", error);
@@ -137,29 +129,59 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (fullName: string, email: string, password: string, cellNumber?: string) => {
     const auth = getFirebaseAuth();
+    const db = getFirestoreDb();
+
     if (!auth) {
+      console.error("Firebase auth not initialized for register.");
       throw new Error("Firebase auth not initialized for register.");
+    }
+     if (!db) {
+      console.error("Firestore not initialized for register.");
+      throw new Error("Firestore not initialized for register.");
     }
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
+
       if (firebaseUser) {
         await updateProfile(firebaseUser, {
           displayName: fullName,
         });
-        // Re-fetch the current user from auth to get the updated profile
-        const updatedFirebaseUser = auth.currentUser; 
+
+        // Store user data in Firestore
+        const userData = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: fullName,
+          role: "student", // Default role
+          cellNumber: cellNumber || null,
+          photoURL: firebaseUser.photoURL || null,
+          createdAt: new Date().toISOString(),
+        };
+
+        try {
+          await setDoc(doc(db, "users", firebaseUser.uid), userData);
+          console.log("User document successfully written to Firestore.");
+        } catch (firestoreError) {
+          console.error("Error writing user document to Firestore:", firestoreError);
+          // Optionally, you could decide to "undo" the Auth registration or notify the user,
+          // but for now, the user is registered in Auth even if Firestore write fails.
+        }
+
+        const updatedFirebaseUser = auth.currentUser; // Re-fetch to get updated profile
         if (updatedFirebaseUser) {
            const appUser: User = {
             uid: updatedFirebaseUser.uid,
             email: updatedFirebaseUser.email,
             fullName: updatedFirebaseUser.displayName,
             photoURL: updatedFirebaseUser.photoURL,
-            cellNumber: cellNumber, // This is not standard, would need custom handling
+            cellNumber: cellNumber, 
             isAdmin: updatedFirebaseUser.email === ADMIN_EMAIL,
+            role: "student", // Also set role in AuthContext user state for immediate use
+            createdAt: userData.createdAt,
           };
-          setUser(appUser); // Set user in context
+          setUser(appUser); 
         }
       }
       router.push('/dashboard');
@@ -171,16 +193,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
   
-  // Local error state for displaying messages in AuthContext consumers, if needed
-  // const [error, setError] = useState<string | null>(null); 
-  // This would require further changes to expose and use setError
-
-
   useEffect(() => {
     if (loading) return;
 
     const publicPaths = ['/', '/login', '/register'];
-    // Adjusted regex to be more specific for subject and branch paths
     const isPublicLessonPath = pathname.startsWith('/lessons') || pathname.startsWith('/lesson/');
 
 
