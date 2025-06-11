@@ -93,7 +93,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
 
 
     console.log("Answer submitted:", newAnswer);
-    toast({ title: "Answer Submitted!", description: "Your answer has been saved. Sending to tutor (mock).", className: "bg-brand-green text-white" });
+    toast({ title: "Answer Submitted!", description: "Your answer has been saved and sent to the tutor.", className: "bg-brand-green text-white" });
 
     setAiFeedbackLoading(true);
     const aiFeedbackResult = await getAIFeedback({
