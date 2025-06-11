@@ -16,7 +16,7 @@ import {
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { getFirebaseAuth, getFirestoreDb } from '@/lib/firebase'; 
-import { doc, setDoc } from "firebase/firestore"; 
+import { doc, setDoc, getDoc } from "firebase/firestore"; 
 
 export interface AuthContextType {
   user: User | null;
@@ -32,7 +32,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-const ADMIN_EMAIL = "gugunkululo@gmail.com"; 
+const ADMIN_UID = "wtUG3rAQVRRLf1INMSEbY7UXSdj1"; 
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -50,16 +50,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const handleAuthStateChange = async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        // In a real app, you might fetch extended user profile (like role) from Firestore here
-        // For now, role is only set explicitly during registration context update
-        const appUser: User = {
+        let appUser: User = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           fullName: firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
-          isAdmin: firebaseUser.email === ADMIN_EMAIL,
-          // role: undefined, // Will be undefined here unless fetched or handled via custom claims
+          isAdmin: firebaseUser.uid === ADMIN_UID,
         };
+
+        // Fetch additional user data from Firestore
+        const db = getFirestoreDb();
+        if (db) {
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          try {
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+              const firestoreData = userDocSnap.data();
+              appUser = {
+                ...appUser,
+                fullName: firestoreData.name || appUser.fullName, // Prefer Firestore name if available
+                cellNumber: firestoreData.cellNumber,
+                role: firestoreData.role,
+                createdAt: firestoreData.createdAt,
+                // isAdmin can also be set from Firestore if preferred, e.g., firestoreData.isAdmin
+              };
+            }
+          } catch (error) {
+            console.error("Error fetching user data from Firestore:", error);
+          }
+        }
         setUser(appUser);
       } else {
         setUser(null);
@@ -74,7 +93,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email?: string, password?: string, isGoogle?: boolean) => {
     const auth = getFirebaseAuth();
     if (!auth) {
-      // setError("Firebase authentication service is not available. Please try again later."); // If setError was defined
       console.error("Firebase auth not initialized for login.");
       throw new Error("Firebase auth not initialized for login.");
     }
@@ -92,7 +110,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error("Email/password or Google sign-in method must be chosen.");
       }
       
-      if (loggedInUser?.email === ADMIN_EMAIL) {
+      if (loggedInUser?.uid === ADMIN_UID) {
         router.push('/tutor/dashboard');
       } else {
         router.push('/dashboard');
@@ -149,12 +167,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           displayName: fullName,
         });
 
-        // Store user data in Firestore
+        const userRole = firebaseUser.uid === ADMIN_UID ? "admin" : "student";
+
         const userData = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           name: fullName,
-          role: "student", // Default role
+          role: userRole, 
           cellNumber: cellNumber || null,
           photoURL: firebaseUser.photoURL || null,
           createdAt: new Date().toISOString(),
@@ -165,11 +184,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log("User document successfully written to Firestore.");
         } catch (firestoreError) {
           console.error("Error writing user document to Firestore:", firestoreError);
-          // Optionally, you could decide to "undo" the Auth registration or notify the user,
-          // but for now, the user is registered in Auth even if Firestore write fails.
         }
 
-        const updatedFirebaseUser = auth.currentUser; // Re-fetch to get updated profile
+        const updatedFirebaseUser = auth.currentUser; 
         if (updatedFirebaseUser) {
            const appUser: User = {
             uid: updatedFirebaseUser.uid,
@@ -177,14 +194,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             fullName: updatedFirebaseUser.displayName,
             photoURL: updatedFirebaseUser.photoURL,
             cellNumber: cellNumber, 
-            isAdmin: updatedFirebaseUser.email === ADMIN_EMAIL,
-            role: "student", // Also set role in AuthContext user state for immediate use
+            isAdmin: updatedFirebaseUser.uid === ADMIN_UID,
+            role: userRole, 
             createdAt: userData.createdAt,
           };
           setUser(appUser); 
         }
       }
-      router.push('/dashboard');
+      if (firebaseUser?.uid === ADMIN_UID) {
+        router.push('/tutor/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error) {
       console.error("Registration error:", error);
       throw error;
