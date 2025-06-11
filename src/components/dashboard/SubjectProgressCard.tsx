@@ -1,4 +1,5 @@
 // src/components/dashboard/SubjectProgressCard.tsx
+import * as React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Book, CheckCircle, TrendingUp } from 'lucide-react';
