@@ -1,3 +1,4 @@
+
 import type { Lesson, LessonBranch, SubjectName, StudentAnswer, Booking } from '@/types';
 
 export const subjects: Array<{ name: SubjectName; description: string; icon?: any }> = [
@@ -77,57 +78,32 @@ export const lessons: Lesson[] = [
 
 const STUDENT_ANSWERS_STORAGE_KEY = 'tutorhub_student_answers_v1';
 
-const defaultStudentAnswers: StudentAnswer[] = [
-  {
-    id: 'ans-001',
-    lessonId: 'math-alg-001',
-    lessonTitle: 'Lesson 1',
-    subject: 'Mathematics',
-    studentId: 'student123', // This is a mock ID for default data
-    reasoning: 'I combined like terms. For the degree, I looked at the highest power of x.',
-    solution: '4x^2 + 2x - 7, degree is 2',
-    submittedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-    status: 'Reviewed',
-    tutorFeedback: 'Great job on combining like terms and identifying the degree! Make sure to show all steps clearly.',
-    aiFeedback: 'Your approach to combining like terms is correct. The identification of the degree based on the highest power of x is also accurate. Well done!',
-  },
-  {
-    id: 'ans-002',
-    lessonId: 'phys-mech-001',
-    lessonTitle: 'Lesson 4',
-    subject: 'Physics',
-    studentId: 'student123', // This is a mock ID for default data
-    reasoning: 'Used F=ma.',
-    solution: 'a = 4 m/s^2',
-    submittedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-    status: 'Awaiting Review',
-  },
-];
-
 export let mockStudentAnswers: StudentAnswer[];
 
 if (typeof window !== 'undefined') {
   const storedAnswers = localStorage.getItem(STUDENT_ANSWERS_STORAGE_KEY);
   if (storedAnswers) {
     try {
-      mockStudentAnswers = JSON.parse(storedAnswers);
-      if (!Array.isArray(mockStudentAnswers)) {
-        console.warn("Stored student answers is not an array, resetting to default.");
-        mockStudentAnswers = [...defaultStudentAnswers];
+      const parsedAnswers = JSON.parse(storedAnswers);
+      if (Array.isArray(parsedAnswers)) {
+        mockStudentAnswers = parsedAnswers;
+      } else {
+        console.warn("Stored student answers is not an array, initializing as empty.");
+        mockStudentAnswers = [];
         localStorage.setItem(STUDENT_ANSWERS_STORAGE_KEY, JSON.stringify(mockStudentAnswers));
       }
     } catch (error) {
-      console.error("Error parsing student answers from localStorage, resetting to default:", error);
-      mockStudentAnswers = [...defaultStudentAnswers];
+      console.error("Error parsing student answers from localStorage, initializing as empty:", error);
+      mockStudentAnswers = [];
       localStorage.setItem(STUDENT_ANSWERS_STORAGE_KEY, JSON.stringify(mockStudentAnswers));
     }
   } else {
-    mockStudentAnswers = [...defaultStudentAnswers];
+    mockStudentAnswers = []; // Initialize as an empty array if nothing is in localStorage
     localStorage.setItem(STUDENT_ANSWERS_STORAGE_KEY, JSON.stringify(mockStudentAnswers));
   }
 } else {
   // Fallback for SSR or environments where window is not defined
-  mockStudentAnswers = [...defaultStudentAnswers];
+  mockStudentAnswers = [];
 }
 
 export function saveStudentAnswersToLocalStorage() {
@@ -173,3 +149,5 @@ export const getBranchesBySubject = (subjectName: SubjectName): LessonBranch[] =
   if (subjectName === 'Physics') return physicsBranches;
   return [];
 }
+
+    
