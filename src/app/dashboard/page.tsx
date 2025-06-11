@@ -1,6 +1,8 @@
+
 // src/app/dashboard/page.tsx
 "use client";
 
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import SubjectProgressCard from '@/components/dashboard/SubjectProgressCard';
 import PerformanceChart, { mockPerformanceData } from '@/components/dashboard/PerformanceChart';
@@ -9,15 +11,64 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, BookOpenText, CheckSquare, ListChecks, Loader2, Sigma, AtomIcon, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
-import { lessons as allLessons, mockStudentAnswers } from '@/data/mockData'; // Assuming lessons are globally unique by ID
-import type { StudentAnswer } from '@/types';
+import { lessons as allLessons } from '@/data/mockData';
+import type { Submission } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
+import { 
+  getFirestoreDb, 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot,
+  Timestamp
+} from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 const DashboardPage = () => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(true);
 
-  if (loading) {
+  useEffect(() => {
+    if (user?.uid) {
+      setLoadingSubmissions(true);
+      const db = getFirestoreDb();
+      if (!db) {
+        toast({ title: "Error", description: "Database not available.", variant: "destructive" });
+        setLoadingSubmissions(false);
+        return;
+      }
+
+      const q = query(
+        collection(db, "submissions"),
+        where("studentId", "==", user.uid),
+        orderBy("timestamp", "desc")
+      );
+
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const fetchedSubmissions: Submission[] = [];
+        querySnapshot.forEach((doc) => {
+          fetchedSubmissions.push({ id: doc.id, ...doc.data() } as Submission);
+        });
+        setSubmissions(fetchedSubmissions);
+        setLoadingSubmissions(false);
+      }, (error) => {
+        console.error("Error fetching submissions: ", error);
+        toast({ title: "Error", description: "Could not fetch your submissions.", variant: "destructive" });
+        setLoadingSubmissions(false);
+      });
+
+      return () => unsubscribe();
+    } else if (!authLoading) { // If user is not logged in and auth is not loading
+      setLoadingSubmissions(false);
+      setSubmissions([]);
+    }
+  }, [user, authLoading, toast]);
+
+  if (authLoading) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-brand-purple-blue" />
@@ -26,24 +77,34 @@ const DashboardPage = () => {
   }
 
   if (!user) {
-    // This should ideally be handled by AuthContext redirect, but as a fallback:
     return (
       <div className="text-center py-10">
-        <p>Please log in to view your dashboard.</p>
-        <Button asChild className="mt-4"><Link href="/login">Login</Link></Button>
+        <p>Please <Link href="/login" className="underline text-brand-purple-blue">login</Link> to view your dashboard.</p>
+        <Button asChild className="mt-4 bg-brand-purple-blue text-white hover:bg-brand-purple-blue/90"><Link href="/login">Login</Link></Button>
       </div>
     );
   }
 
-  // Mock data - replace with actual data fetching
-  const mathLessonsCompleted = mockStudentAnswers.filter(ans => ans.subject === 'Mathematics' && ans.status === 'Reviewed').length;
-  const physicsLessonsCompleted = mockStudentAnswers.filter(ans => ans.subject === 'Physics' && ans.status === 'Reviewed').length;
+  const mathLessonsCompleted = submissions.filter(sub => sub.subject === 'Mathematics' && sub.status === 'reviewed').length;
+  const physicsLessonsCompleted = submissions.filter(sub => sub.subject === 'Physics' && sub.status === 'reviewed').length;
   const totalMathLessons = allLessons.filter(l => l.subject === 'Mathematics').length;
   const totalPhysicsLessons = allLessons.filter(l => l.subject === 'Physics').length;
 
   const lessonsToComplete = allLessons.filter(
-    lesson => !mockStudentAnswers.some(ans => ans.lessonId === lesson.id && ans.status === 'Reviewed')
-  ).slice(0, 5); // Show first 5
+    lesson => !submissions.some(sub => sub.lessonId === lesson.id && (sub.status === 'reviewed' || sub.status === 'submitted'))
+  ).slice(0, 5);
+
+
+  const formatSubmissionTimestamp = (timestamp: Submission['timestamp']) => {
+    if (!timestamp) return 'N/A';
+    if (typeof timestamp === 'string') {
+        return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
+    } else if (timestamp instanceof Timestamp) {
+        return formatDistanceToNow(timestamp.toDate(), { addSuffix: true });
+    }
+    return 'Invalid date';
+  };
+
 
   return (
     <div className="space-y-8">
@@ -102,7 +163,7 @@ const DashboardPage = () => {
       <section>
         <Tabs defaultValue="assignments" className="w-full">
           <TabsList className="grid w-full grid-cols-3 md:max-w-md">
-            <TabsTrigger value="assignments" className="font-semibold"><ListChecks className="mr-2 h-4 w-4 inline-block" />Assignments</TabsTrigger>
+            <TabsTrigger value="assignments" className="font-semibold"><ListChecks className="mr-2 h-4 w-4 inline-block" />Submissions</TabsTrigger>
             <TabsTrigger value="performance" className="font-semibold"><TrendingUp className="mr-2 h-4 w-4 inline-block" />Performance</TabsTrigger>
             <TabsTrigger value="alerts" className="font-semibold"><AlertCircle className="mr-2 h-4 w-4 inline-block" />Alerts</TabsTrigger>
           </TabsList>
@@ -113,36 +174,42 @@ const DashboardPage = () => {
                 <CardDescription>Track your submitted answers and feedback.</CardDescription>
               </CardHeader>
               <CardContent>
-                {mockStudentAnswers.filter(ans => ans.studentId === user.uid).length > 0 ? (
+                {loadingSubmissions ? (
+                  <div className="flex justify-center items-center py-10">
+                    <Loader2 className="h-8 w-8 animate-spin text-brand-purple-blue" />
+                  </div>
+                ) : submissions.length > 0 ? (
                   <ul className="space-y-4">
-                    {mockStudentAnswers.filter(ans => ans.studentId === user.uid).map((answer: StudentAnswer) => (
-                      <li key={answer.id} className="p-4 border rounded-md shadow-sm bg-white">
+                    {submissions.map((submission: Submission) => (
+                      <li key={submission.id} className="p-4 border rounded-md shadow-sm bg-white">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h4 className="font-semibold text-brand-navy">{answer.lessonTitle}</h4>
+                            <h4 className="font-semibold text-brand-navy">{submission.lessonTitle}</h4>
                             <p className="text-xs text-muted-foreground">
-                              {answer.subject} | Submitted {formatDistanceToNow(new Date(answer.submittedAt), { addSuffix: true })}
+                              {submission.subject} | Submitted {formatSubmissionTimestamp(submission.timestamp)}
                             </p>
                           </div>
-                          <Badge variant={answer.status === 'Reviewed' ? 'default' : 'secondary'} 
-                                 className={`${answer.status === 'Reviewed' ? 'bg-brand-green text-white' : 'bg-yellow-400 text-yellow-900'}`}>
-                            {answer.status}
+                          <Badge variant={submission.status === 'reviewed' ? 'default' : 'secondary'}
+                                 className={`${submission.status === 'reviewed' ? 'bg-brand-green text-white' : 'bg-yellow-400 text-yellow-900'}`}>
+                            {submission.status}
                           </Badge>
                         </div>
-                        {answer.status === 'Reviewed' && answer.tutorFeedback && (
-                           <p className="text-sm mt-2 pt-2 border-t"><strong>Tutor Feedback:</strong> {answer.tutorFeedback}</p>
+                        <p className="text-sm mt-2 text-gray-600"><strong>Reasoning:</strong> {submission.reasoning.substring(0,100)}{submission.reasoning.length > 100 ? '...' : ''}</p>
+                        <p className="text-sm mt-1 text-gray-600"><strong>Answer:</strong> {submission.answer.substring(0,100)}{submission.answer.length > 100 ? '...' : ''}</p>
+                        {submission.tutorFeedback && (
+                           <p className="text-sm mt-2 pt-2 border-t"><strong>Tutor Feedback:</strong> {submission.tutorFeedback}</p>
                         )}
-                         {answer.aiFeedback && (
-                           <p className="text-sm mt-2 pt-2 border-t text-purple-700"><strong>AI Feedback:</strong> {answer.aiFeedback}</p>
+                         {submission.aiFeedback && (
+                           <p className="text-sm mt-2 pt-2 border-t text-purple-700"><strong>AI Feedback:</strong> {submission.aiFeedback}</p>
                         )}
                         <Button variant="link" size="sm" asChild className="mt-1 p-0 h-auto text-brand-purple-blue">
-                          <Link href={`/lesson/${answer.lessonId}?answerId=${answer.id}`}>View Submission</Link>
+                          <Link href={`/lesson/${submission.lessonId}?submissionId=${submission.id}`}>View Submission</Link>
                         </Button>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-muted-foreground text-center py-4">No assignments submitted yet. Start a lesson to submit your first answer!</p>
+                  <p className="text-muted-foreground text-center py-4">No submissions yet. Start a lesson to submit your first answer!</p>
                 )}
               </CardContent>
             </Card>
@@ -161,7 +228,7 @@ const DashboardPage = () => {
                 <CardDescription>Important updates and notifications.</CardDescription>
               </CardHeader>
               <CardContent>
-                {/* Mock alerts */}
+                {/* Mock alerts - can be replaced with Firestore data later */}
                 <div className="space-y-3">
                   <div className="flex items-start p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-md">
                     <AlertCircle className="h-5 w-5 text-yellow-500 mr-3 mt-1" />

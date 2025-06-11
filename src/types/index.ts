@@ -1,13 +1,15 @@
 
+import type { Timestamp as FirebaseTimestamp } from 'firebase/firestore';
+
 export interface User {
-  uid: string; 
-  fullName: string | null; 
-  email: string | null; 
-  photoURL?: string | null; 
-  cellNumber?: string; 
-  isAdmin?: boolean; 
-  role?: string; // Added for user role
-  createdAt?: string; // Added for creation timestamp
+  uid: string;
+  fullName: string | null;
+  email: string | null;
+  photoURL?: string | null;
+  cellNumber?: string;
+  role?: 'student' | 'tutor' | 'admin'; // 'tutor' can be used for general tutors, 'admin' for the specific admin UID
+  isAdmin?: boolean; // Derived in AuthContext based on UID match or role
+  createdAt?: FirebaseTimestamp | string; // Store as Firestore Timestamp or ISO string
 }
 
 export type SubjectName = 'Mathematics' | 'Physics';
@@ -22,41 +24,43 @@ export interface Lesson {
   id: string;
   title: string;
   subject: SubjectName;
-  branch: string; 
+  branch: string;
   youtubeVideoId: string;
-  content: string; 
-  question: string; 
+  content: string;
+  question: string;
   exampleSolution: string;
 }
 
-export interface StudentAnswer {
-  id: string;
+export interface Submission {
+  id?: string; // Firestore document ID, optional if Firestore generates it
+  studentId: string;
+  studentName?: string; // Optional: denormalized for easier display on tutor dashboard
   lessonId: string;
   lessonTitle: string;
   subject: SubjectName;
-  studentId: string; 
+  answer: string; // Student's solution
   reasoning: string;
-  solution: string;
-  submittedAt: string; 
-  status: 'Awaiting Review' | 'Reviewed';
+  status: 'submitted' | 'reviewed';
   tutorFeedback?: string;
   aiFeedback?: string;
+  timestamp: FirebaseTimestamp | string; // Firestore Timestamp or ISO string for submission time
+  reviewedAt?: FirebaseTimestamp | string; // Optional: Firestore Timestamp for review time
 }
 
 export interface Booking {
   id: string;
-  userId: string; 
+  userId: string;
   subject: SubjectName;
-  date: string; 
-  time: string; 
+  date: string;
+  time: string;
   confirmed: boolean;
 }
 
 export interface Feedback {
   id: string;
   lessonId: string;
-  userId: string; 
-  rating: number; 
+  userId: string;
+  rating: number;
   comment?: string;
-  submittedAt: string; 
+  submittedAt: FirebaseTimestamp | string; // Firestore Timestamp or ISO string
 }

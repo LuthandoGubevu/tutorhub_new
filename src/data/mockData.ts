@@ -1,5 +1,5 @@
 
-import type { Lesson, LessonBranch, SubjectName, StudentAnswer, Booking } from '@/types';
+import type { Lesson, LessonBranch, SubjectName, Booking } from '@/types';
 
 export const subjects: Array<{ name: SubjectName; description: string; icon?: any }> = [
   { name: 'Mathematics', description: 'Explore the world of numbers, patterns, and logic.' },
@@ -76,51 +76,12 @@ export const lessons: Lesson[] = [
   },
 ];
 
-const STUDENT_ANSWERS_STORAGE_KEY = 'tutorhub_student_answers_v1';
 
-export let mockStudentAnswers: StudentAnswer[];
-
-if (typeof window !== 'undefined') {
-  const storedAnswers = localStorage.getItem(STUDENT_ANSWERS_STORAGE_KEY);
-  if (storedAnswers) {
-    try {
-      const parsedAnswers = JSON.parse(storedAnswers);
-      if (Array.isArray(parsedAnswers)) {
-        mockStudentAnswers = parsedAnswers;
-      } else {
-        console.warn("Stored student answers is not an array, initializing as empty.");
-        mockStudentAnswers = [];
-        localStorage.setItem(STUDENT_ANSWERS_STORAGE_KEY, JSON.stringify(mockStudentAnswers));
-      }
-    } catch (error) {
-      console.error("Error parsing student answers from localStorage, initializing as empty:", error);
-      mockStudentAnswers = [];
-      localStorage.setItem(STUDENT_ANSWERS_STORAGE_KEY, JSON.stringify(mockStudentAnswers));
-    }
-  } else {
-    mockStudentAnswers = []; // Initialize as an empty array if nothing is in localStorage
-    localStorage.setItem(STUDENT_ANSWERS_STORAGE_KEY, JSON.stringify(mockStudentAnswers));
-  }
-} else {
-  // Fallback for SSR or environments where window is not defined
-  mockStudentAnswers = [];
-}
-
-export function saveStudentAnswersToLocalStorage() {
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem(STUDENT_ANSWERS_STORAGE_KEY, JSON.stringify(mockStudentAnswers));
-    } catch (error) {
-      console.error("Error saving student answers to localStorage:", error);
-    }
-  }
-}
-
-
+// Mock booking data can remain if this feature is separate from core submissions
 export const mockBookings: Booking[] = [
     {
         id: 'booking-001',
-        userId: 'student123',
+        userId: 'student123', // This would be a Firebase UID in a real app
         subject: 'Mathematics',
         date: '2024-08-15',
         time: '14:00',
@@ -132,7 +93,7 @@ export const mockBookings: Booking[] = [
         subject: 'Physics',
         date: '2024-08-18',
         time: '10:30',
-        confirmed: false, // Example of a pending confirmation perhaps
+        confirmed: false,
     }
 ];
 
@@ -149,5 +110,3 @@ export const getBranchesBySubject = (subjectName: SubjectName): LessonBranch[] =
   if (subjectName === 'Physics') return physicsBranches;
   return [];
 }
-
-    

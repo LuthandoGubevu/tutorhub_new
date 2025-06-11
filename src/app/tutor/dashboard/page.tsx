@@ -1,3 +1,4 @@
+
 // src/app/tutor/dashboard/page.tsx
 "use client";
 
@@ -5,24 +6,33 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Clock, Eye, FileText, Users } from 'lucide-react';
-import { mockStudentAnswers, getLessonById, saveStudentAnswersToLocalStorage } from '@/data/mockData'; // Re-use student answers for demo
-import type { StudentAnswer } from '@/types';
-import Link from 'next/link';
+import { CheckCircle, Clock, Eye, FileText, Users, Loader2 } from 'lucide-react';
+import { getLessonById } from '@/data/mockData';
+import type { Submission } from '@/types';
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-
+import { 
+  getFirestoreDb, 
+  collection, 
+  query, 
+  orderBy, 
+  onSnapshot,
+  doc,
+  updateDoc,
+  serverTimestamp,
+  Timestamp
+} from '@/lib/firebase';
+import { formatDistanceToNow } from 'date-fns';
 
 const TutorDashboardPage = () => {
-  const [selectedSubmission, setSelectedSubmission] = useState<StudentAnswer | null>(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [tutorComment, setTutorComment] = useState('');
   const { toast } = useToast();
-  
-  // Local state for metrics to ensure they re-render if mockStudentAnswers changes.
-  // This is a simple way; more complex apps might use a state management library or context.
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(true);
   const [metrics, setMetrics] = useState({
     totalSubmissions: 0,
     pendingReviews: 0,
@@ -30,34 +40,44 @@ const TutorDashboardPage = () => {
     activeStudents: 0,
   });
 
-  const [submissions, setSubmissions] = useState<StudentAnswer[]>([]);
-
   useEffect(() => {
-    // Function to update metrics and submissions from mockStudentAnswers
-    const updateDashboardData = () => {
-      const total = mockStudentAnswers.length;
-      const pending = mockStudentAnswers.filter(ans => ans.status === 'Awaiting Review').length;
-      const reviewed = mockStudentAnswers.filter(ans => ans.status === 'Reviewed').length;
-      const students = new Set(mockStudentAnswers.map(ans => ans.studentId)).size;
-      
+    setLoadingSubmissions(true);
+    const db = getFirestoreDb();
+    if (!db) {
+      toast({ title: "Error", description: "Database not available.", variant: "destructive" });
+      setLoadingSubmissions(false);
+      return;
+    }
+
+    const q = query(collection(db, "submissions"), orderBy("timestamp", "desc"));
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const fetchedSubmissions: Submission[] = [];
+      querySnapshot.forEach((doc) => {
+        fetchedSubmissions.push({ id: doc.id, ...doc.data() } as Submission);
+      });
+      setSubmissions(fetchedSubmissions);
+
+      // Update metrics
+      const total = fetchedSubmissions.length;
+      const pending = fetchedSubmissions.filter(sub => sub.status === 'submitted').length;
+      const reviewed = fetchedSubmissions.filter(sub => sub.status === 'reviewed').length;
+      const students = new Set(fetchedSubmissions.map(sub => sub.studentId)).size;
       setMetrics({
         totalSubmissions: total,
         pendingReviews: pending,
         reviewedCount: reviewed,
         activeStudents: students,
       });
-      setSubmissions([...mockStudentAnswers]); // Create a new array to trigger re-render
-    };
+      setLoadingSubmissions(false);
+    }, (error) => {
+      console.error("Error fetching submissions: ", error);
+      toast({ title: "Error", description: "Could not fetch submissions.", variant: "destructive" });
+      setLoadingSubmissions(false);
+    });
 
-    updateDashboardData(); // Initial update
-
-    // Optional: if mockStudentAnswers could change from other places while page is open
-    // and you need live updates without localStorage as the sole trigger.
-    // For this localStorage approach, refresh or navigation will show changes.
-    // const interval = setInterval(updateDashboardData, 5000); // Poll every 5 seconds
-    // return () => clearInterval(interval);
-
-  }, []); // Empty dependency array means this runs once on mount and on data change if re-triggered by parent.
+    return () => unsubscribe();
+  }, [toast]);
 
   const metricCardsData = [
     { title: 'Total Submissions', value: metrics.totalSubmissions, icon: <FileText className="h-5 w-5 text-muted-foreground" /> },
@@ -66,32 +86,41 @@ const TutorDashboardPage = () => {
     { title: 'Active Students', value: metrics.activeStudents, icon: <Users className="h-5 w-5 text-muted-foreground" /> },
   ];
 
-
-  const handleReviewSubmit = () => {
-    if (!selectedSubmission || !tutorComment) {
-        toast({title: "Error", description: "Please enter a comment.", variant: "destructive"});
+  const handleReviewSubmit = async () => {
+    if (!selectedSubmission || !tutorComment || !selectedSubmission.id) {
+      toast({ title: "Error", description: "Please select a submission and enter a comment.", variant: "destructive" });
+      return;
+    }
+    const db = getFirestoreDb();
+    if(!db) {
+        toast({title: "Error", description: "Database not available.", variant: "destructive"});
         return;
     }
-    
-    const index = mockStudentAnswers.findIndex(s => s.id === selectedSubmission.id);
-    if (index > -1) {
-        mockStudentAnswers[index].status = 'Reviewed';
-        mockStudentAnswers[index].tutorFeedback = tutorComment;
-        saveStudentAnswersToLocalStorage(); 
-        
-        // Update local state to trigger re-render
-        setSubmissions([...mockStudentAnswers]);
-        const pending = mockStudentAnswers.filter(ans => ans.status === 'Awaiting Review').length;
-        const reviewed = mockStudentAnswers.filter(ans => ans.status === 'Reviewed').length;
-        setMetrics(prevMetrics => ({
-            ...prevMetrics,
-            pendingReviews: pending,
-            reviewedCount: reviewed,
-        }));
+
+    const submissionRef = doc(db, "submissions", selectedSubmission.id);
+    try {
+      await updateDoc(submissionRef, {
+        status: 'reviewed',
+        tutorFeedback: tutorComment,
+        reviewedAt: serverTimestamp(),
+      });
+      toast({ title: "Feedback Submitted", description: `Feedback for ${selectedSubmission.lessonTitle} saved.`, className: "bg-brand-green text-white" });
+      setSelectedSubmission(null); // Close dialog by resetting selected submission
+      setTutorComment('');
+    } catch (error) {
+      console.error("Error submitting review:", error);
+      toast({ title: "Error", description: "Failed to submit review.", variant: "destructive" });
     }
-    toast({title: "Feedback Submitted", description: `Feedback for ${selectedSubmission.lessonTitle} saved.`, className: "bg-brand-green text-white"});
-    setSelectedSubmission(null);
-    setTutorComment('');
+  };
+  
+  const formatSubmissionTimestamp = (timestamp: Submission['timestamp']) => {
+    if (!timestamp) return 'N/A';
+    if (typeof timestamp === 'string') {
+        return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
+    } else if (timestamp instanceof Timestamp) {
+        return formatDistanceToNow(timestamp.toDate(), { addSuffix: true });
+    }
+    return 'Invalid date';
   };
 
 
@@ -125,11 +154,17 @@ const TutorDashboardPage = () => {
             <CardDescription>Review and provide feedback on student answers.</CardDescription>
           </CardHeader>
           <CardContent>
+            {loadingSubmissions ? (
+              <div className="flex justify-center items-center py-10">
+                 <Loader2 className="h-8 w-8 animate-spin text-brand-purple-blue" />
+              </div>
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Student</TableHead>
                   <TableHead>Lesson Title</TableHead>
+                  <TableHead>Submitted</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Answer Preview</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -138,53 +173,54 @@ const TutorDashboardPage = () => {
               <TableBody>
                 {submissions.map((submission) => (
                   <TableRow key={submission.id}>
-                    <TableCell>Student {submission.studentId.substring(0,6)}...</TableCell>
+                    <TableCell>{submission.studentName || submission.studentId.substring(0, 6) + '...'}</TableCell>
                     <TableCell>{submission.lessonTitle}</TableCell>
+                    <TableCell>{formatSubmissionTimestamp(submission.timestamp)}</TableCell>
                     <TableCell>
-                      <Badge variant={submission.status === 'Reviewed' ? 'default' : 'secondary'}
-                       className={`${submission.status === 'Reviewed' ? 'bg-brand-green text-white' : 'bg-yellow-400 text-yellow-900'}`}>
+                      <Badge variant={submission.status === 'reviewed' ? 'default' : 'secondary'}
+                       className={`${submission.status === 'reviewed' ? 'bg-brand-green text-white' : 'bg-yellow-400 text-yellow-900'}`}>
                         {submission.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="max-w-xs truncate">{submission.solution}</TableCell>
+                    <TableCell className="max-w-xs truncate">{submission.answer}</TableCell>
                     <TableCell className="text-right">
-                       <Dialog onOpenChange={(open) => {
+                       <Dialog open={selectedSubmission?.id === submission.id} onOpenChange={(open) => {
                            if (!open) {
                                setSelectedSubmission(null);
-                               setTutorComment(''); // Reset comment when dialog closes
+                               setTutorComment('');
+                           } else {
+                               setSelectedSubmission(submission);
+                               setTutorComment(submission.tutorFeedback || '');
                            }
                        }}>
                         <DialogTrigger asChild>
                            <Button variant="outline" size="sm" onClick={() => {
                                setSelectedSubmission(submission);
-                               // If opening an already reviewed submission, prefill comment if desired, or clear for new review
-                               if (submission.status === 'Reviewed' && submission.tutorFeedback) {
-                                   setTutorComment(submission.tutorFeedback);
-                               } else {
-                                   setTutorComment('');
-                               }
+                               setTutorComment(submission.tutorFeedback || '');
                            }}>
                             <Eye className="mr-2 h-4 w-4" /> Review
                           </Button>
                         </DialogTrigger>
-                        {selectedSubmission && selectedSubmission.id === submission.id && (
+                        {selectedSubmission && (
                         <DialogContent className="sm:max-w-2xl">
                           <DialogHeader>
                             <DialogTitle className="font-headline text-brand-navy">Review Submission: {selectedSubmission.lessonTitle}</DialogTitle>
-                            <DialogDescription>Student ID: {selectedSubmission.studentId.substring(0,10)}...</DialogDescription>
+                            <DialogDescription>
+                                Student: {selectedSubmission.studentName || selectedSubmission.studentId.substring(0,10)+'...'} | Submitted: {formatSubmissionTimestamp(selectedSubmission.timestamp)}
+                            </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto px-1">
                             <Card>
                               <CardHeader><CardTitle className="text-base">Question</CardTitle></CardHeader>
-                              <CardContent><p>{getLessonById(selectedSubmission.lessonId)?.question || "Question not found."}</p></CardContent>
+                              <CardContent><p className="whitespace-pre-wrap">{getLessonById(selectedSubmission.lessonId)?.question || "Question not found."}</p></CardContent>
                             </Card>
                              <Card>
                               <CardHeader><CardTitle className="text-base">Student's Reasoning</CardTitle></CardHeader>
                               <CardContent><p className="whitespace-pre-wrap">{selectedSubmission.reasoning}</p></CardContent>
                             </Card>
                              <Card>
-                              <CardHeader><CardTitle className="text-base">Student's Solution</CardTitle></CardHeader>
-                              <CardContent><p className="whitespace-pre-wrap">{selectedSubmission.solution}</p></CardContent>
+                              <CardHeader><CardTitle className="text-base">Student's Answer</CardTitle></CardHeader>
+                              <CardContent><p className="whitespace-pre-wrap">{selectedSubmission.answer}</p></CardContent>
                             </Card>
                             {selectedSubmission.aiFeedback && (
                                <Card className="bg-purple-50 border-purple-200">
@@ -192,27 +228,23 @@ const TutorDashboardPage = () => {
                                 <CardContent><p className="text-purple-800 whitespace-pre-wrap">{selectedSubmission.aiFeedback}</p></CardContent>
                               </Card>
                             )}
-                            {selectedSubmission.status === 'Reviewed' && selectedSubmission.tutorFeedback && (
-                               <Card className="bg-green-50 border-green-200">
-                                <CardHeader><CardTitle className="text-base text-green-700">Your Feedback</CardTitle></CardHeader>
-                                <CardContent><p className="text-green-800 whitespace-pre-wrap">{selectedSubmission.tutorFeedback}</p></CardContent>
-                              </Card>
-                            )}
-                            {selectedSubmission.status === 'Awaiting Review' && (
                             <div>
-                                <Label htmlFor="tutorComment" className="font-semibold">Your Comments</Label>
-                                <Textarea 
-                                    id="tutorComment" 
+                                <Label htmlFor="tutorComment" className="font-semibold">
+                                    {selectedSubmission.status === 'reviewed' ? 'Your Feedback (Submitted)' : 'Your Feedback'}
+                                </Label>
+                                <Textarea
+                                    id="tutorComment"
                                     value={tutorComment}
                                     onChange={(e) => setTutorComment(e.target.value)}
-                                    rows={4} 
-                                    placeholder="Provide constructive feedback..." 
+                                    rows={4}
+                                    placeholder="Provide constructive feedback..."
                                     className="mt-1"
+                                    disabled={selectedSubmission.status === 'reviewed'}
                                 />
-                            </div>)}
+                            </div>
                           </div>
                           <DialogFooter>
-                            {selectedSubmission.status === 'Awaiting Review' && (
+                            {selectedSubmission.status === 'submitted' && (
                             <Button onClick={handleReviewSubmit} className="bg-brand-purple-blue hover:bg-brand-purple-blue/80 text-white">
                                 Submit Review
                             </Button>
@@ -227,7 +259,8 @@ const TutorDashboardPage = () => {
                 ))}
               </TableBody>
             </Table>
-             {submissions.length === 0 && (
+            )}
+             {submissions.length === 0 && !loadingSubmissions && (
               <p className="text-center text-muted-foreground py-6">No student submissions yet.</p>
             )}
           </CardContent>
