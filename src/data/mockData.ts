@@ -26,8 +26,8 @@ export const lessons: Lesson[] = [
     title: 'Lesson 1',
     subject: 'Mathematics',
     branch: 'Algebra',
-    youtubeVideoId: 'BhBzhKQzYiI', // Updated video ID
-    content: '<p>This lesson covers the basics of polynomials, including definitions, degrees, and types of polynomials. We will explore how to add, subtract, and multiply polynomial expressions.</p><h3>Key Concepts:</h3><ul><li>Definition of a polynomial</li><li>Degree of a polynomial</li><li>Types: monomial, binomial, trinomial</li><li>Operations: addition, subtraction, multiplication</li></ul>',
+    youtubeVideoId: 'BhBzhKQzYiI',
+    content: '<p>In this video, the focus is on nature of roots and simultaneous equations.</p><p>Understanding nature of roots helps in solving equations, graphing functions and analyzing mathematics models.</p><p>Solving simultaneous equations has a variety of applications in various fields, including physics, engineering, economics and computer science.</p>',
     question: 'Simplify the expression: $(3x^2 - 5x + 2) + (x^2 + 7x - 9)$. What is the degree of the resulting polynomial?',
     exampleSolution: 'Solution: $(3x^2 - 5x + 2) + (x^2 + 7x - 9) = 3x^2 + x^2 - 5x + 7x + 2 - 9 = 4x^2 + 2x - 7$. The degree of the resulting polynomial is 2.',
   },
