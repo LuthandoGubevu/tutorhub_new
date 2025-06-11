@@ -63,7 +63,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: firebaseUser.email,
           fullName: firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
-          isAdmin: firebaseUser.uid === ADMIN_UID, // Initial admin status
+          isAdmin: firebaseUser.uid === ADMIN_UID, 
         };
 
         if (db) {
@@ -71,29 +71,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           try {
             const userDocSnap = await getDoc(userDocRef);
             if (userDocSnap.exists()) {
-              const firestoreData = userDocSnap.data() as User; // Assert User type from Firestore
+              const firestoreData = userDocSnap.data() as User; 
               appUser = {
                 ...appUser,
                 fullName: firestoreData.fullName || appUser.fullName,
                 cellNumber: firestoreData.cellNumber,
                 role: firestoreData.role,
-                createdAt: firestoreData.createdAt, // Expecting Timestamp or string
-                isAdmin: firestoreData.role === 'admin' || firestoreData.role === 'tutor' || firebaseUser.uid === ADMIN_UID, // More robust admin check
+                createdAt: firestoreData.createdAt, 
+                photoURL: firestoreData.photoURL !== undefined ? firestoreData.photoURL : appUser.photoURL,
+                isAdmin: firestoreData.role === 'tutor' || firestoreData.role === 'admin' || firebaseUser.uid === ADMIN_UID, 
               };
             } else {
-              // User exists in Auth but not Firestore (e.g. first Google sign-in, or data migration)
-              // Create a basic profile in Firestore
+              // User exists in Auth but not Firestore
               const userRole = firebaseUser.uid === ADMIN_UID ? "tutor" : "student";
-              const newUserDocData = {
+              const newUserDocData: Record<string, any> = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
                 fullName: firebaseUser.displayName || "New User",
                 role: userRole,
                 createdAt: serverTimestamp(),
               };
+              if (firebaseUser.photoURL !== undefined) {
+                newUserDocData.photoURL = firebaseUser.photoURL;
+              }
               await setDoc(userDocRef, newUserDocData);
               appUser.role = userRole;
-              appUser.createdAt = new Date().toISOString(); // Approximate client-side
+              appUser.createdAt = new Date().toISOString(); 
               appUser.isAdmin = userRole === 'tutor' || userRole === 'admin' || firebaseUser.uid === ADMIN_UID;
                console.log("User document created in Firestore for existing Auth user:", firebaseUser.uid);
             }
@@ -125,19 +128,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const result = await signInWithPopup(auth, provider);
         firebaseUser = result.user;
         
-        // Check if user exists in Firestore, if not, create them
         const userDocRef = doc(db, "users", firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (!userDocSnap.exists()) {
           const userRole = firebaseUser.uid === ADMIN_UID ? "tutor" : "student";
-          const userData = {
+          const userData: Record<string, any> = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             fullName: firebaseUser.displayName,
             role: userRole,
             createdAt: serverTimestamp(),
-            photoURL: firebaseUser.photoURL,
           };
+          if (firebaseUser.photoURL !== undefined) {
+            userData.photoURL = firebaseUser.photoURL;
+          }
           await setDoc(userDocRef, userData);
         }
 
@@ -148,7 +152,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error("Email/password or Google sign-in method must be chosen.");
       }
       
-      // Fetch Firestore data to update user context, including role
       if (firebaseUser) {
         const userDocRef = doc(db, "users", firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
@@ -158,7 +161,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             fullName: firestoreData.fullName || firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL,
+            photoURL: firestoreData.photoURL !== undefined ? firestoreData.photoURL : firebaseUser.photoURL,
             cellNumber: firestoreData.cellNumber,
             role: firestoreData.role,
             createdAt: firestoreData.createdAt,
@@ -171,16 +174,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             router.push('/dashboard');
           }
         } else {
-          // This case should ideally be handled by onAuthStateChanged creating the doc if missing
            console.warn("User signed in but no Firestore document found, redirecting to dashboard.");
-           router.push('/dashboard'); // Fallback redirect
+           router.push('/dashboard'); 
         }
       }
     } catch (error) {
       console.error("Login error:", error);
       throw error;
-    } finally {
-      // setLoading(false); // setLoading is handled by onAuthStateChanged
     }
   };
 
@@ -189,19 +189,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!auth) {
       console.warn("Firebase auth not available for logout.");
       setUser(null);
-      router.push('/'); // Redirect to landing page
-      setLoading(false); // Ensure loading is false if auth is not available
+      router.push('/'); 
+      setLoading(false); 
       return;
     }
     setLoading(true);
     try {
       await signOut(auth);
       setUser(null);
-      router.push('/'); // Redirect to landing page
+      router.push('/'); 
     } catch (error) {
       console.error("Logout error:", error);
-    } finally {
-      // setLoading(false); // setLoading is handled by onAuthStateChanged
     }
   };
 
@@ -224,24 +222,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         const userRole = firebaseUser.uid === ADMIN_UID ? "tutor" : "student";
 
-        const userData: Omit<User, 'isAdmin' | 'createdAt'> & { createdAt: any } = { // Ensure createdAt is compatible with serverTimestamp
+        // Prepare data for Firestore, ensuring photoURL is handled correctly
+        const userDataForFirestore: Record<string, any> = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          fullName: fullName,
+          role: userRole,
+          createdAt: serverTimestamp(),
+        };
+
+        if (cellNumber) {
+          userDataForFirestore.cellNumber = cellNumber;
+        }
+
+        // Directly assign firebaseUser.photoURL (which is string | null)
+        // Firestore can handle `null` values, but not `undefined`.
+        if (firebaseUser.photoURL !== undefined) { // Defensive check, though it's usually string | null
+            userDataForFirestore.photoURL = firebaseUser.photoURL;
+        }
+
+
+        await setDoc(doc(db, "users", firebaseUser.uid), userDataForFirestore);
+        console.log("User document successfully written to Firestore.");
+
+        // Create the app user object for the context
+        const appUser: User = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           fullName: fullName,
           role: userRole,
           cellNumber: cellNumber || undefined,
-          photoURL: firebaseUser.photoURL || undefined,
-          createdAt: serverTimestamp(),
-        };
-
-        await setDoc(doc(db, "users", firebaseUser.uid), userData);
-        console.log("User document successfully written to Firestore.");
-
-        // Update local user state with the newly registered user's details
-        const appUser: User = {
-          ...userData,
-          isAdmin: userRole === 'tutor' || firebaseUser.uid === ADMIN_UID, // Set isAdmin based on role/UID
-          createdAt: new Date().toISOString(), // For immediate local state, Firestore will have serverTimestamp
+          photoURL: firebaseUser.photoURL, // This is string | null
+          isAdmin: userRole === 'tutor' || userRole === 'admin' || firebaseUser.uid === ADMIN_UID,
+          createdAt: new Date().toISOString(), 
         };
         setUser(appUser);
         
@@ -254,23 +267,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error("Registration error:", error);
       throw error;
-    } finally {
-      // setLoading(false); // setLoading is handled by onAuthStateChanged
-    }
+    } 
   };
 
   useEffect(() => {
     if (loading) return;
 
     const publicPaths = ['/', '/login', '/register'];
-    // Allow access to individual lesson pages and subject/branch listings without full auth,
-    // but submission capabilities inside LessonDetailClient will check for user.
     const isPublicLessonPath = pathname.startsWith('/lessons') || pathname.startsWith('/lesson/');
 
     if (pathname === '/tutor/dashboard') {
       if (!user) {
         router.push('/login');
-      } else if (!user.isAdmin) { // Check isAdmin flag from user context
+      } else if (!user.isAdmin) { 
         router.push('/dashboard');
       }
     } else if (!publicPaths.includes(pathname) && !isPublicLessonPath) {
