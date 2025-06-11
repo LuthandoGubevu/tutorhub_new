@@ -189,7 +189,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!auth) {
       console.warn("Firebase auth not available for logout.");
       setUser(null);
-      router.push('/login');
+      router.push('/'); // Redirect to landing page
       setLoading(false); // Ensure loading is false if auth is not available
       return;
     }
@@ -197,7 +197,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await signOut(auth);
       setUser(null);
-      router.push('/login');
+      router.push('/'); // Redirect to landing page
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
@@ -287,3 +287,4 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
