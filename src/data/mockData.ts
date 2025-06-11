@@ -23,17 +23,17 @@ export const lessons: Lesson[] = [
   // Mathematics - Algebra
   {
     id: 'math-alg-001',
-    title: 'Lesson 1', // Updated title
+    title: 'Lesson 1',
     subject: 'Mathematics',
     branch: 'Algebra',
-    youtubeVideoId: ' RoqueL3pVgQ', // Example video ID
+    youtubeVideoId: 'BhBzhKQzYiI', // Updated video ID
     content: '<p>This lesson covers the basics of polynomials, including definitions, degrees, and types of polynomials. We will explore how to add, subtract, and multiply polynomial expressions.</p><h3>Key Concepts:</h3><ul><li>Definition of a polynomial</li><li>Degree of a polynomial</li><li>Types: monomial, binomial, trinomial</li><li>Operations: addition, subtraction, multiplication</li></ul>',
     question: 'Simplify the expression: $(3x^2 - 5x + 2) + (x^2 + 7x - 9)$. What is the degree of the resulting polynomial?',
     exampleSolution: 'Solution: $(3x^2 - 5x + 2) + (x^2 + 7x - 9) = 3x^2 + x^2 - 5x + 7x + 2 - 9 = 4x^2 + 2x - 7$. The degree of the resulting polynomial is 2.',
   },
   {
     id: 'math-alg-002',
-    title: 'Lesson 2', // Updated title
+    title: 'Lesson 2',
     subject: 'Mathematics',
     branch: 'Algebra',
     youtubeVideoId: 'f15zA0PhSek',
@@ -44,7 +44,7 @@ export const lessons: Lesson[] = [
   // Mathematics - Calculus
   {
     id: 'math-calc-001',
-    title: 'Lesson 3', // Updated title
+    title: 'Lesson 3',
     subject: 'Mathematics',
     branch: 'Calculus',
     youtubeVideoId: ' excelencia8000',
@@ -55,7 +55,7 @@ export const lessons: Lesson[] = [
   // Physics - Mechanics
   {
     id: 'phys-mech-001',
-    title: 'Lesson 4', // Updated title
+    title: 'Lesson 4',
     subject: 'Physics',
     branch: 'Mechanics',
     youtubeVideoId: 'kKKM8Y-u7ds',
@@ -65,7 +65,7 @@ export const lessons: Lesson[] = [
   },
   {
     id: 'phys-mech-002',
-    title: 'Lesson 5', // Updated title
+    title: 'Lesson 5',
     subject: 'Physics',
     branch: 'Mechanics',
     youtubeVideoId: 'PYQcpjIFnoo',
@@ -79,7 +79,7 @@ export const mockStudentAnswers: StudentAnswer[] = [
   {
     id: 'ans-001',
     lessonId: 'math-alg-001',
-    lessonTitle: 'Lesson 1', // Updated to match new lesson title
+    lessonTitle: 'Lesson 1',
     subject: 'Mathematics',
     studentId: 'student123',
     reasoning: 'I combined like terms. For the degree, I looked at the highest power of x.',
@@ -92,7 +92,7 @@ export const mockStudentAnswers: StudentAnswer[] = [
   {
     id: 'ans-002',
     lessonId: 'phys-mech-001',
-    lessonTitle: 'Lesson 4', // Updated to match new lesson title
+    lessonTitle: 'Lesson 4',
     subject: 'Physics',
     studentId: 'student123',
     reasoning: 'Used F=ma.',
