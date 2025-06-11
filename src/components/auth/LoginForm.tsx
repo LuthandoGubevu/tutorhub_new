@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { FirebaseError } from 'firebase/app';
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -39,7 +40,17 @@ const LoginForm = () => {
       await login(data.email, data.password);
       // Redirect is handled by AuthContext
     } catch (err) {
-      setError((err as Error).message || "Login failed. Please check your credentials.");
+      if (err instanceof FirebaseError) {
+        if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+          setError("Invalid email or password. Please check your credentials and try again.");
+        } else {
+          setError(err.message || "Login failed due to a Firebase error. Please try again.");
+        }
+      } else if (err instanceof Error) {
+        setError(err.message || "Login failed. Please check your credentials.");
+      } else {
+        setError("An unknown login error occurred. Please try again.");
+      }
     }
   };
 
@@ -48,7 +59,14 @@ const LoginForm = () => {
     try {
       await login(undefined, undefined, true); // Indicate Google Sign-In
     } catch (err) {
-      setError((err as Error).message || "Google Sign-In failed.");
+       if (err instanceof FirebaseError) {
+        // Handle specific Google Sign-In errors if needed, e.g., auth/popup-closed-by-user
+        setError(err.message || "Google Sign-In failed. Please try again.");
+      } else if (err instanceof Error) {
+        setError(err.message || "Google Sign-In failed.");
+      } else {
+        setError("An unknown error occurred during Google Sign-In.");
+      }
     }
   };
 
