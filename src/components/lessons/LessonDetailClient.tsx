@@ -49,11 +49,9 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
   });
 
   useEffect(() => {
-    // Check if an answer for this lesson by this user exists in localStorage or mockData
-    // This is a mock persistence for demonstration. In a real app, fetch from backend.
     if (user) {
         const existingAnswer = mockStudentAnswers.find(
-            (ans) => ans.lessonId === lesson.id && ans.studentId === user.id
+            (ans) => ans.lessonId === lesson.id && ans.studentId === user.uid // Changed to user.uid
         );
         if (existingAnswer) {
             setSubmittedAnswer(existingAnswer);
@@ -70,23 +68,21 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
       return;
     }
     setIsSubmitting(true);
-    setAiFeedback(null); // Clear previous AI feedback
+    setAiFeedback(null); 
 
-    // Mock saving answer
     const newAnswer: StudentAnswer = {
       id: `ans-${Date.now()}`,
       lessonId: lesson.id,
       lessonTitle: lesson.title,
       subject: lesson.subject,
-      studentId: user.id,
+      studentId: user.uid, // Changed from user.id to user.uid
       reasoning: data.reasoning,
       solution: data.solution,
       submittedAt: new Date().toISOString(),
-      status: 'Awaiting Review', // Mock status
+      status: 'Awaiting Review', 
     };
     
-    // In a real app, save to backend. Here, we update mock data for demo.
-    const answerIndex = mockStudentAnswers.findIndex(ans => ans.lessonId === lesson.id && ans.studentId === user.id);
+    const answerIndex = mockStudentAnswers.findIndex(ans => ans.lessonId === lesson.id && ans.studentId === user.uid); // Changed to user.uid
     if (answerIndex > -1) {
         mockStudentAnswers[answerIndex] = { ...mockStudentAnswers[answerIndex], ...newAnswer, status: 'Awaiting Review', tutorFeedback: undefined, aiFeedback: undefined };
     } else {
@@ -98,19 +94,17 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
     console.log("Answer submitted:", newAnswer);
     toast({ title: "Answer Submitted!", description: "Your answer has been saved. Sending to tutor (mock).", className: "bg-brand-green text-white" });
 
-    // Get AI Feedback
     setAiFeedbackLoading(true);
     const aiFeedbackResult = await getAIFeedback({
       lessonTitle: lesson.title,
       studentAnswer: data.solution,
       correctSolution: lesson.exampleSolution,
       studentReasoning: data.reasoning,
-      subject: lesson.subject as SubjectName, // Cast as SubjectName if types align
+      subject: lesson.subject as SubjectName, 
     });
 
     if (aiFeedbackResult.success && aiFeedbackResult.feedback) {
       setAiFeedback(aiFeedbackResult.feedback);
-      // Update the mock answer with AI feedback
       const updatedAnswerIndex = mockStudentAnswers.findIndex(ans => ans.id === newAnswer.id);
       if (updatedAnswerIndex > -1) {
           mockStudentAnswers[updatedAnswerIndex].aiFeedback = aiFeedbackResult.feedback;
@@ -149,7 +143,6 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
 
           <div className="p-6 border rounded-lg bg-blue-50 border-blue-200">
             <h3 className="font-headline text-xl font-semibold text-brand-navy mb-2">Question:</h3>
-            {/* For LaTeX, you'd use a library like KaTeX or MathJax here */}
             <p className="text-lg text-foreground whitespace-pre-wrap">{lesson.question}</p>
           </div>
         </CardContent>
@@ -203,7 +196,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
                   disabled={isSubmitting || (!!submittedAnswer && submittedAnswer.status === 'Reviewed')}
                 >
                   {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {submittedAnswer ? 'Update Answer' : 'Submit Answer'}
+                  {submittedAnswer && submittedAnswer.status !== 'Reviewed' ? 'Update Answer' : submittedAnswer?.status === 'Reviewed' ? 'Answer Submitted' : 'Submit Answer'}
                 </Button>
                 <Button
                   type="button"
@@ -276,4 +269,3 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
 };
 
 export default LessonDetailClient;
-

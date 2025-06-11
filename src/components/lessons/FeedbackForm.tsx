@@ -12,6 +12,7 @@ import StarRating from './StarRating';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import type { Feedback } from '@/types'; // Assuming Feedback type exists for submitted data
 
 const feedbackSchema = z.object({
   rating: z.number().min(1, "Rating is required").max(5),
@@ -44,12 +45,22 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ lessonId, onSubmitSuccess }
       return;
     }
     setIsSubmitting(true);
-    console.log("Feedback submitted:", { ...data, lessonId, userId: user.id });
+    
+    const newFeedback: Omit<Feedback, 'id' | 'submittedAt'> = { // Adapt if Feedback type expects more
+        lessonId,
+        userId: user.uid, // Changed from user.id to user.uid
+        rating: data.rating,
+        comment: data.comment,
+    };
+    console.log("Feedback submitted:", newFeedback);
+
     // Mock API call
     await new Promise(resolve => setTimeout(resolve, 1000));
+    // In a real app, you would save `newFeedback` to your backend and get back the full Feedback object with id and submittedAt.
+    
     setIsSubmitting(false);
     toast({ title: "Feedback Submitted!", description: "Thank you for your feedback.", className: "bg-brand-green text-white" });
-    form.reset();
+    form.reset({rating: 0, comment: ''}); // Reset form with initial values
     if (onSubmitSuccess) onSubmitSuccess();
   };
 

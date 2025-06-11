@@ -35,7 +35,7 @@ const BookSessionPage = () => {
 
     const newBooking: Booking = {
       id: `booking-${Date.now()}`,
-      userId: user.id,
+      userId: user.uid, // Changed from user.id to user.uid
       subject: selectedSubject,
       date: format(selectedDate, "yyyy-MM-dd"),
       time: selectedTime,

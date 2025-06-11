@@ -13,7 +13,6 @@ const Header = () => {
 
   const navLinks = [
     { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="mr-2 h-4 w-4" />, authRequired: true },
-    // { href: '/lessons', label: 'Lessons', icon: <BookOpen className="mr-2 h-4 w-4" />, authRequired: false },
     { href: '/book-session', label: 'Book Session', icon: <CalendarDays className="mr-2 h-4 w-4" />, authRequired: true },
   ];
 
@@ -33,19 +32,31 @@ const Header = () => {
               </Link>
             </Button>
           ))}
+           <Button variant={pathname.startsWith("/lessons") ? "secondary" : "ghost"} className="text-white hover:bg-brand-purple-blue/80 hover:text-white" asChild>
+              <Link href="/lessons" className="flex items-center">
+                <BookOpen className="mr-2 h-4 w-4" />
+                Lessons
+              </Link>
+            </Button>
         </nav>
         <div className="flex items-center space-x-2">
           {loading ? (
             <div className="h-8 w-20 animate-pulse bg-gray-600 rounded"></div>
           ) : user ? (
             <>
-              <span className="text-sm hidden sm:inline">Welcome, {user.fullName.split(' ')[0]}!</span>
+              <span className="text-sm hidden sm:inline">Welcome, {(user.fullName || 'User').split(' ')[0]}!</span>
               <Button variant="outline" size="sm" onClick={logout} className="border-brand-purple-blue text-brand-purple-blue hover:bg-brand-purple-blue hover:text-white">
                 <LogOut className="mr-2 h-4 w-4" /> Logout
               </Button>
             </>
           ) : (
             <>
+             <Button variant={pathname.startsWith("/lessons") ? "secondary" : "ghost"} className="text-white hover:bg-brand-purple-blue/80 hover:text-white" asChild>
+                <Link href="/lessons" className="flex items-center">
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Lessons
+                </Link>
+              </Button>
               <Button variant="ghost" className="text-white hover:bg-brand-purple-blue/80 hover:text-white" asChild>
                 <Link href="/login"><LogIn className="mr-2 h-4 w-4" />Login</Link>
               </Button>

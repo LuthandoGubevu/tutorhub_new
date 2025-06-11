@@ -1,9 +1,10 @@
 
 export interface User {
-  id: string;
-  fullName: string;
-  email: string;
-  cellNumber?: string; // Optional for Google Sign-In
+  uid: string; // Changed from id to uid
+  fullName: string | null; // Firebase displayName can be null
+  email: string | null; // Firebase email can be null
+  photoURL?: string | null; // Standard Firebase property
+  cellNumber?: string; // Custom, not directly in Firebase auth user object unless set as phone number
 }
 
 export type SubjectName = 'Mathematics' | 'Physics';
@@ -30,7 +31,7 @@ export interface StudentAnswer {
   lessonId: string;
   lessonTitle: string;
   subject: SubjectName;
-  studentId: string;
+  studentId: string; // This will store user.uid
   reasoning: string;
   solution: string;
   submittedAt: string; // ISO date string
@@ -41,7 +42,7 @@ export interface StudentAnswer {
 
 export interface Booking {
   id: string;
-  userId: string;
+  userId: string; // This will store user.uid
   subject: SubjectName;
   date: string; // YYYY-MM-DD
   time: string; // HH:MM
@@ -51,7 +52,7 @@ export interface Booking {
 export interface Feedback {
   id: string;
   lessonId: string;
-  userId: string;
+  userId: string; // This will store user.uid
   rating: number; // 1-5
   comment?: string;
   submittedAt: string; // ISO date string

@@ -7,7 +7,7 @@ import PerformanceChart, { mockPerformanceData } from '@/components/dashboard/Pe
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, BookOpenText, CheckSquare, ListChecks, Loader2, Sigma, AtomIcon } from 'lucide-react';
+import { AlertCircle, BookOpenText, CheckSquare, ListChecks, Loader2, Sigma, AtomIcon, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { lessons as allLessons, mockStudentAnswers } from '@/data/mockData'; // Assuming lessons are globally unique by ID
 import type { StudentAnswer } from '@/types';
@@ -49,7 +49,7 @@ const DashboardPage = () => {
     <div className="space-y-8">
       <section>
         <h1 className="font-headline text-3xl md:text-4xl font-bold text-brand-navy mb-2">
-          Welcome, {user.fullName}!
+          Welcome, {user.fullName || 'Student'}!
         </h1>
         <p className="text-lg text-muted-foreground">Here's an overview of your academic journey.</p>
       </section>
@@ -113,9 +113,9 @@ const DashboardPage = () => {
                 <CardDescription>Track your submitted answers and feedback.</CardDescription>
               </CardHeader>
               <CardContent>
-                {mockStudentAnswers.length > 0 ? (
+                {mockStudentAnswers.filter(ans => ans.studentId === user.uid).length > 0 ? (
                   <ul className="space-y-4">
-                    {mockStudentAnswers.map((answer: StudentAnswer) => (
+                    {mockStudentAnswers.filter(ans => ans.studentId === user.uid).map((answer: StudentAnswer) => (
                       <li key={answer.id} className="p-4 border rounded-md shadow-sm bg-white">
                         <div className="flex justify-between items-start">
                           <div>
