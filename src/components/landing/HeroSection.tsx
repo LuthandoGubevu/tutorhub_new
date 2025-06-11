@@ -23,12 +23,12 @@ const HeroSection = () => {
         </div>
         <div className="mt-12">
           <Image 
-            src="https://placehold.co/800x400.png"
+            src="/hero-section.jpg"
             alt="Students learning online"
             width={800}
             height={400}
             className="rounded-lg shadow-xl mx-auto"
-            data-ai-hint="students online learning"
+            priority // Add priority if it's LCP
           />
         </div>
       </div>
