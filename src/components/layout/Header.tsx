@@ -12,12 +12,38 @@ const Header = () => {
   const { user, logout, loading } = useAuth();
   const pathname = usePathname();
 
+  // authRequired: true means link is hidden if not logged in.
+  // adminOnly: true means link is only for admins.
+  // adminOnly: false means link is for students (if authRequired) or public.
   const navLinks = [
     { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: false },
-    { href: '/lessons', label: 'Lessons', icon: <BookOpen className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: false },
+    { href: '/lessons', label: 'Lessons', icon: <BookOpen className="mr-2 h-4 w-4" />, authRequired: false, adminOnly: false }, // Lesson library is public/for all logged in users
     { href: '/book-session', label: 'Book Session', icon: <CalendarDays className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: false },
     { href: '/tutor/dashboard', label: 'Tutor Admin', icon: <ShieldCheck className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: true },
   ];
+
+  const getDisplayedNavLinks = () => {
+    if (loading) return []; // Don't show links while loading auth state
+    if (!user) { // Not logged in
+      return navLinks.filter(link => !link.authRequired); // Show public links (e.g., /lessons)
+    }
+    if (user.isAdmin) { // Admin is logged in
+      // Admin sees Tutor Admin, and can browse Lessons.
+      return navLinks.filter(link => link.adminOnly || link.href === '/lessons');
+    }
+    // Student is logged in
+    return navLinks.filter(link => !link.adminOnly && link.authRequired); // Student sees their specific authRequired links
+                                                                        // and general non-authRequired links if any are filtered here.
+                                                                        // A simpler filter for student:
+                                                                        // return navLinks.filter(link => !link.adminOnly && (link.authRequired || !link.authRequired));
+                                                                        // More accurately for students:
+                                                                        // Show student-specific authRequired links + general public links
+                                                                        // This means: /dashboard, /lessons, /book-session
+    return navLinks.filter(link => !link.adminOnly);
+
+
+  };
+
 
   return (
     <header className="bg-brand-navy text-white shadow-md sticky top-0 z-50">
@@ -27,14 +53,7 @@ const Header = () => {
           <span className="font-headline text-2xl font-semibold">TutorHub</span>
         </Link>
         <nav className="hidden md:flex items-center space-x-2">
-          {navLinks.filter(link => {
-            if (!link.authRequired) return true; // Public links
-            if (link.authRequired && !user) return false; // Auth required but no user
-            if (link.adminOnly && !user?.isAdmin) return false; // Admin link but not admin user
-            if (!link.adminOnly && user?.isAdmin && link.href !== '/tutor/dashboard' && link.href !== '/dashboard') return false; // Admin user should only see admin and general dashboard
-            if (!link.adminOnly && user?.isAdmin && link.href === '/dashboard') return true; // Admin can see student dashboard as a general link too (optional)
-            return true; // Show link
-          }).map(link => (
+          {getDisplayedNavLinks().map(link => (
             <Button key={link.href} variant={pathname === link.href ? "secondary" : "ghost"} className="text-white hover:bg-brand-purple-blue/80 hover:text-white" asChild>
               <Link href={link.href} className="flex items-center">
                 {link.icon}
@@ -55,6 +74,12 @@ const Header = () => {
             </>
           ) : (
             <>
+              {/* Show Lessons link if not logged in, if it's configured as public */}
+              {navLinks.find(l => l.href === '/lessons' && !l.authRequired) && (
+                 <Button variant="ghost" className="text-white hover:bg-brand-purple-blue/80 hover:text-white" asChild>
+                    <Link href="/lessons"><BookOpen className="mr-2 h-4 w-4" />Lessons</Link>
+                </Button>
+              )}
               <Button variant="ghost" className="text-white hover:bg-brand-purple-blue/80 hover:text-white" asChild>
                 <Link href="/login"><LogIn className="mr-2 h-4 w-4" />Login</Link>
               </Button>
