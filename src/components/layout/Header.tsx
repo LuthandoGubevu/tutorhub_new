@@ -23,11 +23,11 @@ const Header = () => {
   ];
 
   const getDisplayedNavLinks = () => {
-    if (loading) return []; 
+    if (loading) return [];
     if (!user) { // Not logged in
       let publicLinks = navLinks.filter(link => !link.authRequired);
-      // Hide "Lessons" from main nav if on landing page and not logged in
-      if (pathname === '/') {
+      // Hide "Lessons" from main nav if on landing, login, or register page and not logged in
+      if (['/', '/login', '/register'].includes(pathname)) {
         publicLinks = publicLinks.filter(link => link.href !== '/lessons');
       }
       return publicLinks;
@@ -41,6 +41,8 @@ const Header = () => {
     return navLinks.filter(link => !link.adminOnly);
   };
 
+  const unauthenticatedAuthPages = ['/login', '/register'];
+  const hideLessonsButtonForUnauthenticated = ['/', ...unauthenticatedAuthPages].includes(pathname);
 
   return (
     <header className="bg-brand-navy text-white shadow-md sticky top-0 z-50">
@@ -71,8 +73,8 @@ const Header = () => {
             </>
           ) : (
             <>
-              {/* Show Lessons link if not logged in, not on landing page, and it's configured as public */}
-              {pathname !== '/' && navLinks.find(l => l.href === '/lessons' && !l.authRequired) && (
+              {/* Show Lessons link if not logged in, AND not on landing/login/register, AND it's configured as public */}
+              {!hideLessonsButtonForUnauthenticated && navLinks.find(l => l.href === '/lessons' && !l.authRequired) && (
                  <Button variant="ghost" className="text-white hover:bg-brand-purple-blue/80 hover:text-white" asChild>
                     <Link href="/lessons"><BookOpen className="mr-2 h-4 w-4" />Lessons</Link>
                 </Button>
