@@ -23,25 +23,22 @@ const Header = () => {
   ];
 
   const getDisplayedNavLinks = () => {
-    if (loading) return []; // Don't show links while loading auth state
+    if (loading) return []; 
     if (!user) { // Not logged in
-      return navLinks.filter(link => !link.authRequired); // Show public links (e.g., /lessons)
+      let publicLinks = navLinks.filter(link => !link.authRequired);
+      // Hide "Lessons" from main nav if on landing page and not logged in
+      if (pathname === '/') {
+        publicLinks = publicLinks.filter(link => link.href !== '/lessons');
+      }
+      return publicLinks;
     }
     if (user.isAdmin) { // Admin is logged in
       // Admin sees Tutor Admin, and can browse Lessons.
       return navLinks.filter(link => link.adminOnly || link.href === '/lessons');
     }
     // Student is logged in
-    return navLinks.filter(link => !link.adminOnly && link.authRequired); // Student sees their specific authRequired links
-                                                                        // and general non-authRequired links if any are filtered here.
-                                                                        // A simpler filter for student:
-                                                                        // return navLinks.filter(link => !link.adminOnly && (link.authRequired || !link.authRequired));
-                                                                        // More accurately for students:
-                                                                        // Show student-specific authRequired links + general public links
-                                                                        // This means: /dashboard, /lessons, /book-session
+    // Show student-specific authRequired links + general public links like /lessons
     return navLinks.filter(link => !link.adminOnly);
-
-
   };
 
 
@@ -74,8 +71,8 @@ const Header = () => {
             </>
           ) : (
             <>
-              {/* Show Lessons link if not logged in, if it's configured as public */}
-              {navLinks.find(l => l.href === '/lessons' && !l.authRequired) && (
+              {/* Show Lessons link if not logged in, not on landing page, and it's configured as public */}
+              {pathname !== '/' && navLinks.find(l => l.href === '/lessons' && !l.authRequired) && (
                  <Button variant="ghost" className="text-white hover:bg-brand-purple-blue/80 hover:text-white" asChild>
                     <Link href="/lessons"><BookOpen className="mr-2 h-4 w-4" />Lessons</Link>
                 </Button>
