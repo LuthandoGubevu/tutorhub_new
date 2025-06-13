@@ -3,13 +3,15 @@ import type { Timestamp as FirebaseTimestamp } from 'firebase/firestore';
 
 export interface User {
   uid: string;
-  fullName: string | null;
+  firstName: string | null; // Changed from fullName
+  lastName: string | null; // Added
   email: string | null;
   photoURL?: string | null;
   cellNumber?: string;
-  role?: 'student' | 'tutor' | 'admin'; // 'tutor' can be used for general tutors, 'admin' for the specific admin UID
-  isAdmin?: boolean; // Derived in AuthContext based on UID match or role
-  createdAt?: FirebaseTimestamp | string; // Store as Firestore Timestamp or ISO string
+  grade?: string | number; // Added: e.g., "Grade 10" or 10
+  role?: 'student' | 'tutor' | 'admin';
+  isAdmin?: boolean;
+  createdAt?: FirebaseTimestamp | string;
 }
 
 export type SubjectName = 'Mathematics' | 'Physics';
@@ -32,20 +34,20 @@ export interface Lesson {
 }
 
 export interface Submission {
-  id?: string; // Firestore document ID, optional if Firestore generates it
+  id?: string;
   studentId: string;
-  studentName?: string; // Optional: denormalized for easier display on tutor dashboard
+  studentName?: string;
   lessonId: string;
   lessonTitle: string;
   subject: SubjectName;
-  answer: string; // Student's solution
+  answer: string;
   reasoning: string;
   status: 'submitted' | 'reviewed';
-  tutorFeedback?: string | null; // Can be explicitly null
-  aiFeedback?: string | null; // Can be explicitly null
-  grade?: number | string | null; // New field: stores the mark (e.g., 75 or "A+"), can be null
-  timestamp: FirebaseTimestamp | string; // Firestore Timestamp or ISO string for submission time
-  reviewedAt?: FirebaseTimestamp | string; // Optional: Firestore Timestamp for review time
+  tutorFeedback?: string | null;
+  aiFeedback?: string | null;
+  grade?: number | string | null;
+  timestamp: FirebaseTimestamp | string;
+  reviewedAt?: FirebaseTimestamp | string;
 }
 
 export interface Booking {
@@ -63,5 +65,6 @@ export interface Feedback {
   userId: string;
   rating: number;
   comment?: string;
-  submittedAt: FirebaseTimestamp | string; // Firestore Timestamp or ISO string
+  submittedAt: FirebaseTimestamp | string;
 }
+

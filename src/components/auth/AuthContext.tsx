@@ -30,7 +30,14 @@ export interface AuthContextType {
   loading: boolean;
   login: (email?: string, password?: string, isGoogle?: boolean) => Promise<{ success: boolean; error?: any }>;
   logout: () => Promise<void>;
-  register: (fullName: string, email: string, password: string, cellNumber?: string) => Promise<void>;
+  register: (
+    firstName: string, 
+    lastName: string, 
+    email: string, 
+    password: string, 
+    grade: string | number, 
+    cellNumber?: string
+  ) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -62,8 +69,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         let appUser: User = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
-          fullName: firebaseUser.displayName,
-          isAdmin: firebaseUser.uid === ADMIN_UID, 
+          firstName: firebaseUser.displayName ? firebaseUser.displayName.split(' ')[0] : null,
+          lastName: firebaseUser.displayName ? firebaseUser.displayName.split(' ').slice(1).join(' ') : null,
+          isAdmin: firebaseUser.uid === ADMIN_UID,
         };
 
         if (firebaseUser.photoURL) {
@@ -72,7 +80,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           appUser.photoURL = null;
         }
         
-
         if (db) {
           const userDocRef = doc(db, "users", firebaseUser.uid);
           try {
@@ -81,7 +88,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               const firestoreData = userDocSnap.data() as User; 
               appUser = {
                 ...appUser,
-                fullName: firestoreData.fullName || appUser.fullName,
+                firstName: firestoreData.firstName || appUser.firstName,
+                lastName: firestoreData.lastName || appUser.lastName,
+                grade: firestoreData.grade,
                 cellNumber: firestoreData.cellNumber,
                 role: firestoreData.role,
                 createdAt: firestoreData.createdAt, 
@@ -90,10 +99,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               };
             } else { 
               const userRole = firebaseUser.uid === ADMIN_UID ? "tutor" : "student";
+              // For users signing in with Google who might not have a Firestore doc yet
+              const displayName = firebaseUser.displayName || "New User";
+              const names = displayName.split(' ');
+              const firstName = names[0];
+              const lastName = names.slice(1).join(' ');
+
               const newUserDocData: Record<string, any> = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
-                fullName: firebaseUser.displayName || "New User",
+                firstName: firstName,
+                lastName: lastName,
                 role: userRole,
                 createdAt: serverTimestamp(),
               };
@@ -105,6 +121,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               await setDoc(userDocRef, newUserDocData);
               appUser.role = userRole;
               appUser.isAdmin = userRole === 'tutor' || userRole === 'admin' || firebaseUser.uid === ADMIN_UID;
+              appUser.firstName = firstName;
+              appUser.lastName = lastName;
             }
           } catch (error) {
             console.error("Error fetching/creating user data from Firestore:", error);
@@ -135,15 +153,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const result = await signInWithPopup(auth, provider);
         firebaseUser = result.user;
         
-        // Ensure user document exists or is created after Google sign-in
         const userDocRef = doc(db, "users", firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (!userDocSnap.exists()) {
           const userRole = firebaseUser.uid === ADMIN_UID ? "tutor" : "student";
+          const displayName = firebaseUser.displayName || "New User";
+          const names = displayName.split(' ');
+          const firstName = names[0];
+          const lastName = names.slice(1).join(' ');
+
           const userData: Record<string, any> = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
-            fullName: firebaseUser.displayName,
+            firstName: firstName,
+            lastName: lastName,
             role: userRole,
             createdAt: serverTimestamp(),
           };
@@ -158,6 +181,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const result = await signInWithEmailAndPassword(auth, email, password);
         firebaseUser = result.user;
       } else {
+        // This case should no longer be reached if LoginForm ensures email/password or isGoogle flag
+        console.error("Login: Email/password or Google sign-in method must be chosen.");
         return { success: false, error: new Error("Login method requires email/password or Google flag.") };
       }
       
@@ -165,13 +190,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const userDocRef = doc(db, "users", firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
-          const firestoreData = userDocSnap.data() as User;
+          const firestoreData = userDocSnap.data() as User; // Cast to your User type
            const appUser: User = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
-            fullName: firestoreData.fullName || firebaseUser.displayName,
+            firstName: firestoreData.firstName || (firebaseUser.displayName ? firebaseUser.displayName.split(' ')[0] : null),
+            lastName: firestoreData.lastName || (firebaseUser.displayName ? firebaseUser.displayName.split(' ').slice(1).join(' ') : null),
             photoURL: firestoreData.photoURL !== undefined ? firestoreData.photoURL : (firebaseUser.photoURL || null),
             cellNumber: firestoreData.cellNumber,
+            grade: firestoreData.grade,
             role: firestoreData.role,
             createdAt: firestoreData.createdAt,
             isAdmin: firestoreData.role === 'admin' || firestoreData.role === 'tutor' || firebaseUser.uid === ADMIN_UID,
@@ -184,11 +211,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         } else {
            console.warn("User signed in but no Firestore document found immediately after login. User object might be incomplete.");
-           // Create a temporary user object for redirection
+           const displayName = firebaseUser.displayName;
            const tempAppUser: User = { 
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
-                fullName: firebaseUser.displayName,
+                firstName: displayName ? displayName.split(' ')[0] : null,
+                lastName: displayName ? displayName.split(' ').slice(1).join(' ') : null,
                 photoURL: firebaseUser.photoURL || null, 
                 isAdmin: firebaseUser.uid === ADMIN_UID,
            };
@@ -201,12 +229,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         return { success: true };
       } else {
-        // This case should ideally not be reached if Firebase auth calls succeed and return a user.
         return { success: false, error: new Error("Login process completed but no user object was returned from Firebase.")};
       }
-    } catch (error) {
-      console.error("Login error in AuthContext:", error); // Log the error for debugging
-      return { success: false, error: error }; // Return an error object
+    } catch (error: any) {
+      console.error("Login error in AuthContext:", error);
+      // Return the error to be handled by the form
+      return { success: false, error };
     } finally {
         setLoading(false);
     }
@@ -232,7 +260,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (fullName: string, email: string, password: string, cellNumber?: string) => {
+  const register = async (
+    firstName: string, 
+    lastName: string, 
+    email: string, 
+    password: string, 
+    grade: string | number, 
+    cellNumber?: string
+  ) => {
     const auth = getFirebaseAuth();
     const db = getFirestoreDb();
 
@@ -243,6 +278,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
+      const fullName = `${firstName} ${lastName}`;
 
       if (firebaseUser) {
         await updateProfile(firebaseUser, {
@@ -253,9 +289,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         const userDataForFirestore: Record<string, any> = {
           uid: firebaseUser.uid,
+          firstName,
+          lastName,
           email: firebaseUser.email,
-          fullName: fullName,
-          role: userRole,
+          grade,
+          role: userRole, // Default role
           createdAt: serverTimestamp(),
         };
 
@@ -274,7 +312,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const appUser: User = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
-          fullName: fullName,
+          firstName,
+          lastName,
+          grade,
           role: userRole,
           cellNumber: cellNumber || undefined,
           photoURL: firebaseUser.photoURL || null,
@@ -290,7 +330,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error("Registration error:", error);
-      throw error; // Re-throw for RegisterForm to handle
+      throw error; 
     } finally {
         setLoading(false);
     }
@@ -339,4 +379,3 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     </AuthContext.Provider>
   );
 };
-
