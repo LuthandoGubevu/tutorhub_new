@@ -1,3 +1,4 @@
+
 // src/app/lessons/[subject]/page.tsx
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,6 +6,7 @@ import { getBranchesBySubject, subjects as allSubjects } from '@/data/mockData';
 import type { SubjectName, LessonBranch } from '@/types';
 import { ArrowRight, FolderOpen } from 'lucide-react';
 import { notFound } from 'next/navigation';
+import DisabledBranchCardClient from '@/components/lessons/DisabledBranchCardClient';
 
 interface SubjectPageParams {
   params: {
@@ -43,41 +45,29 @@ export default function SubjectBranchesPage({ params }: SubjectPageParams) {
             const isMathematics = subjectName === 'Mathematics';
             const isUnavailable = isMathematics && unavailableMathematicsBranches.includes(branch.name);
 
-            const cardInnerContent = (
-              <>
-                <CardHeader className="items-center p-2">
-                  <FolderOpen className={`h-10 w-10 mb-2 ${isUnavailable ? 'text-gray-400' : 'text-brand-purple-blue'}`} />
-                  <CardTitle className={`font-headline text-xl ${isUnavailable ? 'text-gray-500' : 'text-brand-navy group-hover:text-brand-purple-blue transition-colors'}`}>
-                    {branch.name}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow mt-2">
-                    <p className={`text-sm ${isUnavailable ? 'text-gray-400' : 'text-muted-foreground'}`}>Explore lessons in {branch.name}.</p>
-                </CardContent>
-                <div className={`mt-auto font-semibold flex items-center text-sm ${isUnavailable ? 'text-red-600' : 'text-brand-purple-blue group-hover:underline'}`}>
-                  {isUnavailable ? 'Not Available Yet' : (
-                    <>
-                      View Lessons <ArrowRight className="ml-1 h-3 w-3" />
-                    </>
-                  )}
-                </div>
-              </>
-            );
-
             if (isUnavailable) {
-              return (
-                <div
-                  key={branch.id}
-                  className="block"
-                  onClick={() => alert("Not Available Yet. This feature is coming soon!")}
-                  aria-disabled="true"
-                >
-                  <Card className="shadow-md transition-all duration-300 rounded-lg h-full flex flex-col items-center text-center p-6 bg-gray-100 border-gray-300 opacity-70 cursor-not-allowed border-2">
-                    {cardInnerContent}
-                  </Card>
-                </div>
-              );
+              return <DisabledBranchCardClient key={branch.id} branch={branch} subjectName={subjectName} />;
             } else {
+              // Card content for available branches
+              const cardInnerContent = (
+                <>
+                  <CardHeader className="items-center p-2">
+                    <FolderOpen className="h-10 w-10 mb-2 text-brand-purple-blue" />
+                    <CardTitle className="font-headline text-xl text-brand-navy group-hover:text-brand-purple-blue transition-colors">
+                      {branch.name}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-grow mt-2">
+                      <p className="text-sm text-muted-foreground">Explore lessons in {branch.name}.</p>
+                  </CardContent>
+                  <div className="mt-auto font-semibold flex items-center text-sm text-brand-purple-blue group-hover:underline">
+                    <>
+                        View Lessons <ArrowRight className="ml-1 h-3 w-3" />
+                    </>
+                  </div>
+                </>
+              );
+
               return (
                 <Link key={branch.id} href={`/lessons/${subjectName.toLowerCase()}/${branch.name.toLowerCase().replace(/\s+/g, '-')}`} className="block group">
                   <Card className="shadow-md hover:shadow-lg transition-all duration-300 rounded-lg h-full flex flex-col items-center text-center p-6 hover:border-brand-purple-blue border-2 border-transparent">
