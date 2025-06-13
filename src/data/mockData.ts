@@ -46,8 +46,15 @@ export const lessons: Lesson[] = [
     branch: 'Algebra',
     youtubeVideoId: '3dJXkHo5qkg',
     content: '<p>In this video, the focus is on quadratic equations, surds, exponents.</p><p>There are several ways of solving quadratic equations like, factors,  completing the square or quadratic formula.</p><p>Surds are Mathematical expressions that contain irrational roots, such as square roots, cube roots, and radical expressions.</p><p>Exponents are mathematical operations that involve raising a number to a power. They are used to represent repeated&nbsp;multiplication.</p>',
-    question: 'Solve for $x$: $3(x - 2) + 5 = 2x - 7$.',
-    exampleSolution: '$3x - 6 + 5 = 2x - 7 \\Rightarrow 3x - 1 = 2x - 7 \\Rightarrow x = -6$.',
+    question: 'QUESTION 1.1: Solve for x:', // General question title for structured questions
+    structuredQuestions: [
+      { id: '1.1.1', text: '(x - 2)(5 + x) = 0', marks: 2 },
+      { id: '1.1.2', text: '3x² - 2x - 6 = 0 (correct to TWO decimal places)', marks: 4 },
+      { id: '1.1.3', text: '2√(x + 6) + 2 = x', marks: 4 },
+      { id: '1.1.4', text: 'x² < -2x + 15', marks: 4 },
+      { id: '1.1.5', text: '2^(x+2) - 3 ⋅ 2^(x-1) = 80', marks: 5 },
+    ],
+    exampleSolution: 'Solutions for each sub-question should be verified and provided by the tutor. For structured questions, individual solutions should be detailed here or linked.',
   },
   {
     id: 'math-alg-003',
