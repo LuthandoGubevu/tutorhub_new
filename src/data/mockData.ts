@@ -78,8 +78,8 @@ export const lessons: Lesson[] = [
     title: 'Algebra Lesson 4 (Placeholder)',
     subject: 'Mathematics',
     branch: 'Algebra',
-    youtubeVideoId: 'A6_xy8mgRaE', // Updated video ID
-    content: '<p>This is placeholder content for Algebra Lesson 4. Consider topics such as polynomial operations, rational expressions, or systems of linear equations.</p>',
+    youtubeVideoId: 'A6_xy8mgRaE',
+    content: '<p>In this video, the focus is on quadratic equations, surds, exponents.</p><p>There are several ways of solving quadratic equations like, factors,  completing the square or quadratic formula.</p><p>Surds are Mathematical expressions that contain irrational roots, such as square roots, cube roots, and radical expressions</p><p>Solving simultaneous equations has a variety of applications in various fields, including physics, engineering, economics and computer&nbsp;science.</p>',
     question: 'Placeholder question for Algebra Lesson 4. For example: Simplify the expression $(2x^2 + 3x - 1) - (x^2 - 2x + 5)$.',
     exampleSolution: 'Placeholder solution for Algebra Lesson 4. For example: $x^2 + 5x - 6$.',
   },
@@ -161,6 +161,7 @@ export const getBranchesBySubject = (subjectName: SubjectName): LessonBranch[] =
   if (subjectName === 'Physics') return physicsBranches;
   return [];
 }
+
 
 
 
