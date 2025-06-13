@@ -9,7 +9,7 @@ import PerformanceChart, { mockPerformanceData } from '@/components/dashboard/Pe
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, BookOpenText, CheckSquare, ListChecks, Loader2, Sigma, AtomIcon, TrendingUp, Award } from 'lucide-react';
+import { AlertCircle, BookOpenText, CheckSquare, ListChecks, Loader2, Sigma, AtomIcon, TrendingUp, Award, PercentCircle } from 'lucide-react';
 import Link from 'next/link';
 import { lessons as allLessons } from '@/data/mockData';
 import type { Submission } from '@/types';
@@ -25,6 +25,7 @@ import {
   Timestamp
 } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { Progress } from '@/components/ui/progress';
 
 interface GradeBadgeProps {
   variant: 'default' | 'secondary' | 'destructive' | 'outline';
@@ -58,6 +59,11 @@ const DashboardPage = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(true);
 
+  const [mathProgress, setMathProgress] = useState({ attempted: 0, averageGrade: 0 });
+  const [physicsProgress, setPhysicsProgress] = useState({ attempted: 0, averageGrade: 0 });
+  const [overallProgressPercentage, setOverallProgressPercentage] = useState(0);
+
+
   useEffect(() => {
     if (user?.uid) {
       setLoadingSubmissions(true);
@@ -71,6 +77,7 @@ const DashboardPage = () => {
       const q = query(
         collection(db, "submissions"),
         where("studentId", "==", user.uid),
+        // No initial status filter here, fetch all user's submissions
         orderBy("timestamp", "desc")
       );
 
@@ -80,6 +87,34 @@ const DashboardPage = () => {
           fetchedSubmissions.push({ id: doc.id, ...doc.data() } as Submission);
         });
         setSubmissions(fetchedSubmissions);
+
+        // Calculate progress stats
+        const mathSubs = fetchedSubmissions.filter(s => s.subject === 'Mathematics');
+        const physicsSubs = fetchedSubmissions.filter(s => s.subject === 'Physics');
+
+        const attemptedMathLessons = new Set(mathSubs.map(s => s.lessonId)).size;
+        const attemptedPhysicsLessons = new Set(physicsSubs.map(s => s.lessonId)).size;
+
+        const gradedMathSubs = mathSubs.filter(s => s.status === 'reviewed' && typeof s.grade === 'number');
+        const gradedPhysicsSubs = physicsSubs.filter(s => s.status === 'reviewed' && typeof s.grade === 'number');
+
+        const calculateAverage = (gradedSubs: Submission[]) => {
+          if (!gradedSubs.length) return 0;
+          const sumOfGrades = gradedSubs.reduce((acc, curr) => acc + (curr.grade as number), 0);
+          return parseFloat((sumOfGrades / gradedSubs.length).toFixed(1));
+        };
+
+        setMathProgress({ attempted: attemptedMathLessons, averageGrade: calculateAverage(gradedMathSubs) });
+        setPhysicsProgress({ attempted: attemptedPhysicsLessons, averageGrade: calculateAverage(gradedPhysicsSubs) });
+        
+        const totalLessonsCount = allLessons.length;
+        const totalAttemptedLessons = attemptedMathLessons + attemptedPhysicsLessons;
+        if (totalLessonsCount > 0) {
+            setOverallProgressPercentage(Math.round((totalAttemptedLessons / totalLessonsCount) * 100));
+        } else {
+            setOverallProgressPercentage(0);
+        }
+
         setLoadingSubmissions(false);
       }, (error) => {
         console.error("Error fetching submissions: ", error);
@@ -94,7 +129,7 @@ const DashboardPage = () => {
     }
   }, [user, authLoading, toast]);
 
-  if (authLoading) {
+  if (authLoading || loadingSubmissions) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-brand-purple-blue" />
@@ -111,13 +146,11 @@ const DashboardPage = () => {
     );
   }
 
-  const mathLessonsCompleted = submissions.filter(sub => sub.subject === 'Mathematics' && sub.status === 'reviewed').length;
-  const physicsLessonsCompleted = submissions.filter(sub => sub.subject === 'Physics' && sub.status === 'reviewed').length;
   const totalMathLessons = allLessons.filter(l => l.subject === 'Mathematics').length;
   const totalPhysicsLessons = allLessons.filter(l => l.subject === 'Physics').length;
 
   const lessonsToComplete = allLessons.filter(
-    lesson => !submissions.some(sub => sub.lessonId === lesson.id && (sub.status === 'reviewed' || sub.status === 'submitted'))
+    lesson => !submissions.some(sub => sub.lessonId === lesson.id) // Check if any submission exists for this lesson
   ).slice(0, 5);
 
 
@@ -140,19 +173,42 @@ const DashboardPage = () => {
         </h1>
         <p className="text-lg text-muted-foreground">Here's an overview of your academic journey.</p>
       </section>
+      
+      <section>
+        <Card className="shadow-lg rounded-lg">
+          <CardHeader>
+            <CardTitle className="font-headline text-xl text-brand-navy flex items-center">
+              <PercentCircle className="mr-2 h-6 w-6 text-brand-purple-blue"/>
+              Overall Progress
+            </CardTitle>
+            <CardDescription>Your overall progress across all subjects.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center space-x-4">
+              <Progress value={overallProgressPercentage} className="h-4 flex-1" />
+              <span className="text-2xl font-bold text-brand-purple-blue">{overallProgressPercentage}%</span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              You have attempted {mathProgress.attempted + physicsProgress.attempted} out of {totalMathLessons + totalPhysicsLessons} total lessons.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
 
       <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <SubjectProgressCard
           subjectName="Mathematics"
           totalLessons={totalMathLessons}
-          completedLessons={mathLessonsCompleted}
+          attemptedLessons={mathProgress.attempted}
+          averageGrade={mathProgress.averageGrade}
           icon={<Sigma />}
           colorClass="text-blue-500"
         />
         <SubjectProgressCard
           subjectName="Physics"
           totalLessons={totalPhysicsLessons}
-          completedLessons={physicsLessonsCompleted}
+          attemptedLessons={physicsProgress.attempted}
+          averageGrade={physicsProgress.averageGrade}
           icon={<AtomIcon />}
           colorClass="text-green-500"
         />
@@ -200,7 +256,7 @@ const DashboardPage = () => {
                 <CardDescription>Track your submitted answers and feedback.</CardDescription>
               </CardHeader>
               <CardContent>
-                {loadingSubmissions ? (
+                {loadingSubmissions && submissions.length === 0 ? ( // Adjusted loading condition
                   <div className="flex justify-center items-center py-10">
                     <Loader2 className="h-8 w-8 animate-spin text-brand-purple-blue" />
                   </div>
@@ -291,3 +347,4 @@ const DashboardPage = () => {
 };
 
 export default DashboardPage;
+
