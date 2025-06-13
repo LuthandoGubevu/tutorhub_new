@@ -323,7 +323,11 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
                 <div className="space-y-6">
                   {(lesson.structuredQuestions || []).map((sq, index) => (
                     <div key={sq.id} className="p-4 border rounded-md bg-card">
-                      <h4 className="font-semibold text-brand-navy mb-1">Question {sq.id}: <span className="font-normal">{sq.text}</span> {sq.marks && `(${sq.marks} marks)`}</h4>
+                      <div className="mb-2">
+                        <p className="font-semibold text-brand-navy text-lg">Question {sq.id}</p>
+                        <p className="text-foreground mt-1">{sq.text}</p>
+                        {sq.marks && <p className="text-sm text-muted-foreground mt-1">({sq.marks} marks)</p>}
+                      </div>
                       <div className="space-y-2">
                         <Label htmlFor={`structuredAnswers.${index}.reasoning`} className="text-base font-semibold">Your Reasoning</Label>
                         <Textarea
