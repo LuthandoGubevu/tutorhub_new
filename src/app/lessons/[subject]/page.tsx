@@ -24,6 +24,7 @@ export default function SubjectBranchesPage({ params }: SubjectPageParams) {
   
   const branches = getBranchesBySubject(subjectName);
   const unavailableMathematicsBranches = ['Calculus', 'Geometry', 'Statistics'];
+  const unavailablePhysicsBranches = ['Mechanics', 'Waves & Optics', 'Thermodynamics', 'Electromagnetism'];
 
   return (
     <div className="space-y-8">
@@ -43,9 +44,12 @@ export default function SubjectBranchesPage({ params }: SubjectPageParams) {
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {branches.map((branch: LessonBranch) => {
             const isMathematics = subjectName === 'Mathematics';
-            const isUnavailable = isMathematics && unavailableMathematicsBranches.includes(branch.name);
+            const isMathBranchUnavailable = isMathematics && unavailableMathematicsBranches.includes(branch.name);
 
-            if (isUnavailable) {
+            const isPhysics = subjectName === 'Physics';
+            const isPhysicsBranchUnavailable = isPhysics && unavailablePhysicsBranches.includes(branch.name);
+
+            if (isMathBranchUnavailable || isPhysicsBranchUnavailable) {
               return <DisabledBranchCardClient key={branch.id} branch={branch} subjectName={subjectName} />;
             } else {
               // Card content for available branches
