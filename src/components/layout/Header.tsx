@@ -26,8 +26,8 @@ const Header = () => {
     if (loading) return [];
     if (!user) { // Not logged in
       let publicLinks = navLinks.filter(link => !link.authRequired);
-      // Hide "Lessons" from main nav if on landing, login, or register page and not logged in
-      if (['/', '/login', '/register'].includes(pathname)) {
+      // Hide "Lessons" from main nav if on landing, login, register, or any lesson-related page and not logged in
+      if (['/', '/login', '/register'].includes(pathname) || pathname.startsWith('/lessons') || pathname.startsWith('/lesson/')) {
         publicLinks = publicLinks.filter(link => link.href !== '/lessons');
       }
       return publicLinks;
@@ -41,8 +41,11 @@ const Header = () => {
     return navLinks.filter(link => !link.adminOnly);
   };
 
-  const unauthenticatedAuthPages = ['/login', '/register'];
-  const hideLessonsButtonForUnauthenticated = ['/', ...unauthenticatedAuthPages].includes(pathname);
+  const unauthenticatedSafePages = ['/', '/login', '/register'];
+  const isLessonRelatedPage = pathname.startsWith('/lessons') || pathname.startsWith('/lesson/');
+  // Hide the standalone "Lessons" button if user is unauthenticated AND on specific pages (landing, auth, or lesson-related pages)
+  const hideLessonsButtonForUnauthenticated = (unauthenticatedSafePages.includes(pathname) || isLessonRelatedPage);
+
 
   return (
     <header className="bg-brand-navy text-white shadow-md sticky top-0 z-50">
@@ -66,14 +69,14 @@ const Header = () => {
             <div className="h-8 w-20 animate-pulse bg-gray-600 rounded"></div>
           ) : user ? (
             <>
-              <span className="text-sm hidden sm:inline">Welcome, {(user.fullName || 'User').split(' ')[0]}! {user.isAdmin && "(Admin)"}</span>
+              <span className="text-sm hidden sm:inline">Welcome, {user.firstName || 'User'}! {user.isAdmin && "(Admin)"}</span>
               <Button variant="outline" size="sm" onClick={logout} className="border-brand-purple-blue text-brand-purple-blue hover:bg-brand-purple-blue hover:text-white">
                 <LogOut className="mr-2 h-4 w-4" /> Logout
               </Button>
             </>
           ) : (
             <>
-              {/* Show Lessons link if not logged in, AND not on landing/login/register, AND it's configured as public */}
+              {/* Show standalone Lessons button if not logged in, AND not on a page where it should be hidden, AND it's configured as public */}
               {!hideLessonsButtonForUnauthenticated && navLinks.find(l => l.href === '/lessons' && !l.authRequired) && (
                  <Button variant="ghost" className="text-white hover:bg-brand-purple-blue/80 hover:text-white" asChild>
                     <Link href="/lessons"><BookOpen className="mr-2 h-4 w-4" />Lessons</Link>
