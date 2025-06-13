@@ -34,8 +34,8 @@ export const lessons: Lesson[] = [
       { id: '1.1.1', text: '(3−x)(2−x) = 0', marks: 2 },
       { id: '1.1.2', text: '2x² + 7x = 2 (Correct to 2 decimal places)', marks: 4 },
       { id: '1.1.3', text: '4 + 5x > 6x²', marks: 4 },
-      { id: '1.1.4', text: '9x + 9 = 10.3x (This typically means 9^x + 9 = 10 * 3^x. Please verify intended question.)', marks: 4 },
-      { id: '1.2', text: 'Solve for x and y: (Please provide the system of equations here)', marks: 5 }, // Placeholder for actual system of equations
+      { id: '1.1.4', text: '9^x + 9 = 10 * 3^x', marks: 4 }, // Corrected interpretation
+      { id: '1.2', text: 'Solve for x and y: 2x + y = 5 and 3x - 2y = 4', marks: 5 }, // Example system, replace with actual
     ],
     exampleSolution: 'Solutions for each sub-question should be verified and provided. For 1.1.1: x=3 or x=2. For structured questions, individual solutions should be detailed.',
   },
@@ -58,13 +58,20 @@ export const lessons: Lesson[] = [
   },
   {
     id: 'math-alg-003',
-    title: 'Algebra Lesson 3 (Placeholder)',
+    title: 'Algebra Lesson 3',
     subject: 'Mathematics',
     branch: 'Algebra',
     youtubeVideoId: '4-Lq10ZE1PU',
     content: '<p>In this video, the focus is on quadratic equations, inequality, exponents and simultaneous equations.</p><p>There are several ways of solving quadratic equations like, factors,  completing the square or quadratic formula.</p><p>An inequality is a mathematical statement that compares to expressions using greater than, less than or equal to, or greater than or equal to.</p><p>Exponents are mathematical operations that involve raising a number to a power. They are used to represent repeated multiplication.</p><p>Solving simultaneous equations has a variety of applications in various fields, including physics, engineering, economics and computer&nbsp;science.</p>',
-    question: 'Placeholder question for Algebra Lesson 3. For example: Factor the quadratic expression $x^2 - 5x + 6$.',
-    exampleSolution: 'Placeholder solution for Algebra Lesson 3. For example: $(x-2)(x-3)$.',
+    question: 'QUESTION 1: Solve the following problems.',
+    structuredQuestions: [
+      { id: '1.1.1', text: '(3x - 2)^2 = 5', marks: 4 },
+      { id: '1.1.2', text: '2 * 3^(2x) = 9', marks: 3 },
+      { id: '1.1.3', text: 'x^3 - 3x^2 - x + 3 = 0', marks: 4 },
+      { id: '1.1.4', text: '2x^2 + 9x - 5 <= 0', marks: 4 },
+      { id: '1.2', text: 'Solve for x and y simultaneously if: y - x + 3 = 0 and x^2 - x = 6 + y', marks: 6 },
+    ],
+    exampleSolution: 'Placeholder solution for Algebra Lesson 3. Solutions for each sub-question should be detailed by the tutor.',
   },
   {
     id: 'math-alg-004',
@@ -154,6 +161,7 @@ export const getBranchesBySubject = (subjectName: SubjectName): LessonBranch[] =
   if (subjectName === 'Physics') return physicsBranches;
   return [];
 }
+
 
 
 
