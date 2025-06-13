@@ -42,6 +42,36 @@ export const lessons: Lesson[] = [
     question: 'Solve for $x$: $3(x - 2) + 5 = 2x - 7$.',
     exampleSolution: '$3x - 6 + 5 = 2x - 7 \Rightarrow 3x - 1 = 2x - 7 \Rightarrow x = -6$.',
   },
+  {
+    id: 'math-alg-003',
+    title: 'Algebra Lesson 3 (Placeholder)',
+    subject: 'Mathematics',
+    branch: 'Algebra',
+    youtubeVideoId: 'dQw4w9WgXcQ', // Placeholder video ID
+    content: '<p>This is placeholder content for Algebra Lesson 3. You can edit this later to include specific topics like quadratic equations, inequalities, or functions.</p>',
+    question: 'Placeholder question for Algebra Lesson 3. For example: Factor the quadratic expression $x^2 - 5x + 6$.',
+    exampleSolution: 'Placeholder solution for Algebra Lesson 3. For example: $(x-2)(x-3)$.',
+  },
+  {
+    id: 'math-alg-004',
+    title: 'Algebra Lesson 4 (Placeholder)',
+    subject: 'Mathematics',
+    branch: 'Algebra',
+    youtubeVideoId: 'dQw4w9WgXcQ', // Placeholder video ID
+    content: '<p>This is placeholder content for Algebra Lesson 4. Consider topics such as polynomial operations, rational expressions, or systems of linear equations.</p>',
+    question: 'Placeholder question for Algebra Lesson 4. For example: Simplify the expression $(2x^2 + 3x - 1) - (x^2 - 2x + 5)$.',
+    exampleSolution: 'Placeholder solution for Algebra Lesson 4. For example: $x^2 + 5x - 6$.',
+  },
+  {
+    id: 'math-alg-005',
+    title: 'Algebra Lesson 5 (Placeholder)',
+    subject: 'Mathematics',
+    branch: 'Algebra',
+    youtubeVideoId: 'dQw4w9WgXcQ', // Placeholder video ID
+    content: '<p>This is placeholder content for Algebra Lesson 5. You might cover topics like exponents, radicals, or an introduction to matrices.</p>',
+    question: 'Placeholder question for Algebra Lesson 5. For example: Solve the system of equations: $y = 2x + 1$ and $y = -x + 4$.',
+    exampleSolution: 'Placeholder solution for Algebra Lesson 5. For example: $x=1, y=3$.',
+  },
   // Mathematics - Calculus
   {
     id: 'math-calc-001',
@@ -110,3 +140,4 @@ export const getBranchesBySubject = (subjectName: SubjectName): LessonBranch[] =
   if (subjectName === 'Physics') return physicsBranches;
   return [];
 }
+
