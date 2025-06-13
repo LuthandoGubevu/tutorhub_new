@@ -44,7 +44,7 @@ export const lessons: Lesson[] = [
     title: 'Lesson 2',
     subject: 'Mathematics',
     branch: 'Algebra',
-    youtubeVideoId: 'f15zA0PhSek',
+    youtubeVideoId: '3dJXkHo5qkg',
     content: '<p>In this video, the focus is on quadratic equations, surds, exponents.</p><p>There are several ways of solving quadratic equations like, factors,  completing the square or quadratic formula.</p><p>Surds are Mathematical expressions that contain irrational roots, such as square roots, cube roots, and radical expressions.</p><p>Exponents are mathematical operations that involve raising a number to a power. They are used to represent repeated&nbsp;multiplication.</p>',
     question: 'Solve for $x$: $3(x - 2) + 5 = 2x - 7$.',
     exampleSolution: '$3x - 6 + 5 = 2x - 7 \\Rightarrow 3x - 1 = 2x - 7 \\Rightarrow x = -6$.',
@@ -147,4 +147,5 @@ export const getBranchesBySubject = (subjectName: SubjectName): LessonBranch[] =
   if (subjectName === 'Physics') return physicsBranches;
   return [];
 }
+
 
