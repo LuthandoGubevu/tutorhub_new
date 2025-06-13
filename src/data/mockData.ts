@@ -37,7 +37,7 @@ export const lessons: Lesson[] = [
       { id: '1.1.4', text: '9x + 9 = 10.3x (This typically means 9^x + 9 = 10 * 3^x. Please verify intended question.)', marks: 4 },
       { id: '1.2', text: 'Solve for x and y: (Please provide the system of equations here)', marks: 5 }, // Placeholder for actual system of equations
     ],
-    exampleSolution: 'Solutions for each sub-question should be verified and provided. For 1.1.1: x=3 or x=2.',
+    exampleSolution: 'Solutions for each sub-question should be verified and provided. For 1.1.1: x=3 or x=2. For structured questions, individual solutions should be detailed.',
   },
   {
     id: 'math-alg-002',
@@ -45,7 +45,7 @@ export const lessons: Lesson[] = [
     subject: 'Mathematics',
     branch: 'Algebra',
     youtubeVideoId: 'f15zA0PhSek',
-    content: '<p>Learn the techniques for solving linear equations in one variable. This includes understanding properties of equality and applying them to isolate the variable.</p>',
+    content: '<p>In this video, the focus is on quadratic equations, surds, exponents.</p><p>There are several ways of solving quadratic equations like, factors,  completing the square or quadratic formula.</p><p>Surds are Mathematical expressions that contain irrational roots, such as square roots, cube roots, and radical expressions.</p><p>Exponents are mathematical operations that involve raising a number to a power. They are used to represent repeated&nbsp;multiplication.</p>',
     question: 'Solve for $x$: $3(x - 2) + 5 = 2x - 7$.',
     exampleSolution: '$3x - 6 + 5 = 2x - 7 \\Rightarrow 3x - 1 = 2x - 7 \\Rightarrow x = -6$.',
   },
@@ -147,3 +147,4 @@ export const getBranchesBySubject = (subjectName: SubjectName): LessonBranch[] =
   if (subjectName === 'Physics') return physicsBranches;
   return [];
 }
+
