@@ -61,7 +61,7 @@ export const lessons: Lesson[] = [
     title: 'Algebra Lesson 3 (Placeholder)',
     subject: 'Mathematics',
     branch: 'Algebra',
-    youtubeVideoId: 'dQw4w9WgXcQ', // Placeholder video ID
+    youtubeVideoId: '4-Lq10ZE1PU', // Updated video ID
     content: '<p>This is placeholder content for Algebra Lesson 3. You can edit this later to include specific topics like quadratic equations, inequalities, or functions.</p>',
     question: 'Placeholder question for Algebra Lesson 3. For example: Factor the quadratic expression $x^2 - 5x + 6$.',
     exampleSolution: 'Placeholder solution for Algebra Lesson 3. For example: $(x-2)(x-3)$.',
@@ -154,5 +154,6 @@ export const getBranchesBySubject = (subjectName: SubjectName): LessonBranch[] =
   if (subjectName === 'Physics') return physicsBranches;
   return [];
 }
+
 
 
