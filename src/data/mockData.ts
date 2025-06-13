@@ -61,8 +61,8 @@ export const lessons: Lesson[] = [
     title: 'Algebra Lesson 3 (Placeholder)',
     subject: 'Mathematics',
     branch: 'Algebra',
-    youtubeVideoId: '4-Lq10ZE1PU', // Updated video ID
-    content: '<p>This is placeholder content for Algebra Lesson 3. You can edit this later to include specific topics like quadratic equations, inequalities, or functions.</p>',
+    youtubeVideoId: '4-Lq10ZE1PU',
+    content: '<p>In this video, the focus is on quadratic equations, inequality, exponents and simultaneous equations.</p><p>There are several ways of solving quadratic equations like, factors,  completing the square or quadratic formula.</p><p>An inequality is a mathematical statement that compares to expressions using greater than, less than or equal to, or greater than or equal to.</p><p>Exponents are mathematical operations that involve raising a number to a power. They are used to represent repeated multiplication.</p><p>Solving simultaneous equations has a variety of applications in various fields, including physics, engineering, economics and computer&nbsp;science.</p>',
     question: 'Placeholder question for Algebra Lesson 3. For example: Factor the quadratic expression $x^2 - 5x + 6$.',
     exampleSolution: 'Placeholder solution for Algebra Lesson 3. For example: $(x-2)(x-3)$.',
   },
@@ -154,6 +154,7 @@ export const getBranchesBySubject = (subjectName: SubjectName): LessonBranch[] =
   if (subjectName === 'Physics') return physicsBranches;
   return [];
 }
+
 
 
 
