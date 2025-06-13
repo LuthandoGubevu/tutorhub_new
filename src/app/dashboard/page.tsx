@@ -169,7 +169,7 @@ const DashboardPage = () => {
     <div className="space-y-8">
       <section>
         <h1 className="font-headline text-3xl md:text-4xl font-bold text-brand-navy mb-2">
-          Welcome, {user.fullName || 'Student'}!
+          Welcome, {user.firstName || 'Student'}!
         </h1>
         <p className="text-lg text-muted-foreground">Here's an overview of your academic journey.</p>
       </section>
