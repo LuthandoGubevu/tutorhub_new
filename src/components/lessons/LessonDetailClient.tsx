@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import FeedbackForm from './FeedbackForm';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, AlertTriangle, MessageSquare, Award, ListChecks } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, MessageSquare, Award, ListChecks, Save } from 'lucide-react';
 import { getAIFeedback } from '@/app/actions/feedbackActions';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -64,7 +64,7 @@ interface LessonDetailClientProps {
 const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Used for both draft and final submit
   const [showExampleSolution, setShowExampleSolution] = useState(false);
   const [aiFeedback, setAiFeedback] = useState<string | null>(null);
   const [aiFeedbackLoading, setAiFeedbackLoading] = useState(false);
@@ -120,7 +120,6 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
             form.reset({ reasoning: docData.reasoning, solution: docData.answer } as SingleAnswerFormValues);
           }
 
-
           if (docData.aiFeedback) setAiFeedback(docData.aiFeedback);
         } else {
           setSubmittedAnswer(null);
@@ -141,6 +140,77 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
     }
   }, [lesson, user, form, toast, isStructuredLesson]);
 
+  const preparePayload = (data: SingleAnswerFormValues | StructuredAnswerFormValues): Omit<Submission, 'id' | 'timestamp'> => {
+    const commonPayloadBase = {
+      lessonId: lesson.id,
+      lessonTitle: lesson.title,
+      subject: lesson.subject,
+      studentId: user!.uid, // user is checked before calling this
+      studentName: user!.firstName ? `${user!.firstName} ${user!.lastName || ''}`.trim() : (user!.email || "Anonymous Student"),
+      // status will be set by the calling function (draft or submitted)
+    };
+
+    if (isStructuredLesson) {
+      const structuredData = data as StructuredAnswerFormValues;
+      const questionsForSubmission: QuestionAnswer[] = lesson.structuredQuestions!.map((sq, index) => ({
+        questionId: sq.id,
+        questionText: sq.text,
+        reasoning: structuredData.structuredAnswers[index].reasoning,
+        answer: structuredData.structuredAnswers[index].solution,
+      }));
+      return {
+        ...commonPayloadBase,
+        questions: questionsForSubmission,
+        answer: undefined,
+        reasoning: undefined,
+      } as Omit<Submission, 'id' | 'timestamp' | 'status'>;
+    } else {
+      const singleData = data as SingleAnswerFormValues;
+      return {
+        ...commonPayloadBase,
+        answer: singleData.solution,
+        reasoning: singleData.reasoning,
+        questions: undefined,
+      } as Omit<Submission, 'id' | 'timestamp' | 'status'>;
+    }
+  };
+
+
+  const handleSaveDraft = async (formData: SingleAnswerFormValues | StructuredAnswerFormValues) => {
+    if (!user) return;
+    const db = getFirestoreDb();
+    if (!db) {
+      toast({ title: "Error", description: "Database not available.", variant: "destructive" });
+      return;
+    }
+
+    setIsSubmitting(true);
+    const preparedData = preparePayload(formData);
+    const payloadForFirestore: Partial<Submission> & { timestamp: any } = {
+      ...preparedData,
+      status: 'draft',
+      timestamp: serverTimestamp(),
+    };
+
+    try {
+      if (submissionId) {
+        const submissionRef = doc(db, "submissions", submissionId);
+        await updateDoc(submissionRef, payloadForFirestore);
+        toast({ title: "Draft Saved!", description: "Your progress has been saved.", className: "bg-brand-green text-white" });
+      } else {
+        const docRef = await addDoc(collection(db, "submissions"), payloadForFirestore);
+        setSubmissionId(docRef.id);
+        toast({ title: "Draft Saved!", description: "Your progress has been saved.", className: "bg-brand-green text-white" });
+      }
+      form.reset(formData); // To mark form as not dirty after save
+    } catch (error: any) {
+      console.error("Error saving draft:", error);
+      toast({ title: "Draft Save Error", description: `Could not save your draft. ${error.message || ''}`, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
 
   const onSubmit = async (data: SingleAnswerFormValues | StructuredAnswerFormValues) => {
     if (!user) {
@@ -154,77 +224,48 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
     }
 
     setIsSubmitting(true);
-    setAiFeedback(null);
+    setAiFeedback(null); // Reset AI feedback for new submission
 
-    let currentSubmissionId = submissionId;
-    let payloadForFirestore: Partial<Submission> & { timestamp: any };
+    const preparedData = preparePayload(data);
+    let payloadForFirestore: Partial<Submission> & { timestamp: any } = {
+      ...preparedData,
+      status: 'submitted',
+      timestamp: serverTimestamp(),
+      aiFeedback: null, // Explicitly reset for new submission
+      tutorFeedback: null,
+      grade: null,
+      reviewedAt: null,
+    };
+    
+    let currentSubmissionIdForAI = submissionId;
 
     try {
-      const commonPayload = {
-        lessonId: lesson.id,
-        lessonTitle: lesson.title,
-        subject: lesson.subject,
-        studentId: user.uid,
-        studentName: user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user.email || "Anonymous Student"),
-        status: 'submitted' as 'submitted' | 'reviewed',
-        timestamp: serverTimestamp(),
-        aiFeedback: null,
-        tutorFeedback: null,
-        grade: null,
-      };
-
-      if (isStructuredLesson) {
-        const structuredData = data as StructuredAnswerFormValues;
-        const questionsForSubmission: QuestionAnswer[] = lesson.structuredQuestions!.map((sq, index) => ({
-          questionId: sq.id,
-          questionText: sq.text,
-          reasoning: structuredData.structuredAnswers[index].reasoning,
-          answer: structuredData.structuredAnswers[index].solution,
-        }));
-        payloadForFirestore = {
-          ...commonPayload,
-          questions: questionsForSubmission,
-          answer: undefined, // Clear single answer fields
-          reasoning: undefined, // Clear single reasoning fields
-        };
-      } else {
-        const singleData = data as SingleAnswerFormValues;
-        payloadForFirestore = {
-          ...commonPayload,
-          answer: singleData.solution,
-          reasoning: singleData.reasoning,
-          questions: undefined, // Clear structured questions field
-        };
-      }
-
-
       if (submissionId) {
         const submissionRef = doc(db, "submissions", submissionId);
         await updateDoc(submissionRef, payloadForFirestore);
-        console.log("Submission updated:", submissionId);
-        toast({ title: "Answer Updated!", description: "Your answer has been re-submitted for review.", className: "bg-brand-green text-white" });
+        console.log("Submission updated for review:", submissionId);
+        toast({ title: "Answer Resubmitted!", description: "Your answer has been re-submitted for review.", className: "bg-brand-green text-white" });
       } else {
         const docRef = await addDoc(collection(db, "submissions"), payloadForFirestore);
-        currentSubmissionId = docRef.id;
         setSubmissionId(docRef.id);
-        console.log("Submission added with ID:", docRef.id);
-        toast({ title: "Answer Submitted!", description: "Your answer has been saved.", className: "bg-brand-green text-white" });
+        currentSubmissionIdForAI = docRef.id;
+        console.log("Submission added for review with ID:", docRef.id);
+        toast({ title: "Answer Submitted!", description: "Your answer has been saved for review.", className: "bg-brand-green text-white" });
       }
+      form.reset(data); // To mark form as not dirty after successful submission
 
-      if (currentSubmissionId) {
+      if (currentSubmissionIdForAI) {
         setAiFeedbackLoading(true);
         let studentAnswerForAI: string;
         let studentReasoningForAI: string;
 
         if (isStructuredLesson && payloadForFirestore.questions && payloadForFirestore.questions.length > 0) {
-          // TODO: Enhance AI feedback to handle multiple questions. For now, using the first question.
           studentAnswerForAI = payloadForFirestore.questions[0].answer;
           studentReasoningForAI = payloadForFirestore.questions[0].reasoning;
         } else if (!isStructuredLesson && payloadForFirestore.answer) {
           studentAnswerForAI = payloadForFirestore.answer;
           studentReasoningForAI = payloadForFirestore.reasoning!;
         } else {
-          // Fallback if data is somehow missing
           studentAnswerForAI = "No answer provided.";
           studentReasoningForAI = "No reasoning provided.";
         }
@@ -232,18 +273,21 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
         const aiResult = await getAIFeedback({
           lessonTitle: lesson.title,
           studentAnswer: studentAnswerForAI,
-          correctSolution: lesson.exampleSolution, // This might need adjustment for structured questions too
+          correctSolution: lesson.exampleSolution,
           studentReasoning: studentReasoningForAI,
           subject: lesson.subject as SubjectName,
         });
 
         if (aiResult.success && aiResult.feedback) {
           setAiFeedback(aiResult.feedback);
-          const submissionToUpdateRef = doc(db, "submissions", currentSubmissionId);
+          const submissionToUpdateRef = doc(db, "submissions", currentSubmissionIdForAI);
           await updateDoc(submissionToUpdateRef, { aiFeedback: aiResult.feedback });
           toast({ title: "AI Feedback Received!", description: "Check the AI feedback section below." });
         } else if (aiResult.error) {
           toast({ title: "AI Feedback Error", description: aiResult.error, variant: "destructive" });
+          // Keep aiFeedback null on the document if generation failed
+           const submissionToUpdateRef = doc(db, "submissions", currentSubmissionIdForAI);
+           await updateDoc(submissionToUpdateRef, { aiFeedback: null });
         }
       }
     } catch (error: any) {
@@ -265,7 +309,27 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
     return 'Invalid date';
   };
 
-  const isFormDisabled = isSubmitting || (!!submittedAnswer && submittedAnswer.status === 'reviewed');
+  const isFormPermanentlyDisabled = submittedAnswer && submittedAnswer.status === 'reviewed';
+  
+  const mainSubmitButtonText = () => {
+    if (!submittedAnswer || submittedAnswer.status === 'draft') return "Submit for Review";
+    if (submittedAnswer.status === 'submitted') return "Resubmit for Review";
+    if (submittedAnswer.status === 'reviewed') return "Resubmit (Clears Review)"; // Or just disable
+    return "Submit for Review";
+  };
+
+  // Disable main submit if form is permanently disabled, or if submitting, or if form is not dirty AND a draft/submitted answer exists
+  const isMainSubmitButtonDisabled = 
+    isFormPermanentlyDisabled || 
+    isSubmitting || 
+    (!form.formState.isDirty && !!submittedAnswer && (submittedAnswer.status === 'submitted' || submittedAnswer.status === 'draft'));
+
+  // Disable save draft if form is permanently disabled, or if submitting, or if form is not dirty AND a draft answer exists
+  const isSaveDraftButtonDisabled = 
+    isFormPermanentlyDisabled || 
+    isSubmitting ||
+    (!form.formState.isDirty && !!submittedAnswer && submittedAnswer.status === 'draft');
+
 
   return (
     <div className="space-y-8">
@@ -291,10 +355,12 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
           <div className="prose prose-lg max-w-none mb-6" dangerouslySetInnerHTML={{ __html: lesson.content }} />
 
           <div className="p-6 border rounded-lg bg-blue-50 border-blue-200">
-            <h3 className="font-headline text-xl font-semibold text-brand-navy mb-2">
-              {isStructuredLesson ? lesson.question : "Question:"}
+             <h3 className="font-headline text-xl font-semibold text-brand-navy mb-2">
+                {lesson.question}
             </h3>
-            {!isStructuredLesson && <p className="text-lg text-foreground whitespace-pre-wrap">{lesson.question}</p>}
+            {!isStructuredLesson && lesson.structuredQuestions && lesson.structuredQuestions.length === 0 && (
+                <p className="text-lg text-foreground whitespace-pre-wrap">{lesson.question}</p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -306,12 +372,16 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
           </CardTitle>
           {submittedAnswer && (
             <div className="mt-2">
-              <Badge variant={submittedAnswer.status === 'reviewed' ? 'default' : 'secondary'}
-                className={`${submittedAnswer.status === 'reviewed' ? 'bg-brand-green text-white' : 'bg-yellow-400 text-yellow-900'}`}>
+              <Badge variant={submittedAnswer.status === 'reviewed' ? 'default' : (submittedAnswer.status === 'submitted' ? 'secondary' : 'outline')}
+                className={`${
+                  submittedAnswer.status === 'reviewed' ? 'bg-brand-green text-white' 
+                  : submittedAnswer.status === 'submitted' ? 'bg-yellow-400 text-yellow-900'
+                  : 'border-gray-400 text-gray-600' // Draft status
+                }`}>
                 Status: {submittedAnswer.status}
               </Badge>
               <p className="text-xs text-muted-foreground mt-1">
-                Last submitted {formatSubmissionTimestamp(submittedAnswer.timestamp)}
+                Last saved/submitted {formatSubmissionTimestamp(submittedAnswer.timestamp)}
               </p>
             </div>
           )}
@@ -323,7 +393,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
                 <div className="space-y-6">
                   {(lesson.structuredQuestions || []).map((sq, index) => (
                     <div key={sq.id} className="p-4 border rounded-md bg-card">
-                      <div className="mb-2">
+                       <div className="mb-2">
                         <p className="font-semibold text-brand-navy text-lg">Question {sq.id}</p>
                         <p className="text-foreground mt-1">{sq.text}</p>
                         {sq.marks && <p className="text-sm text-muted-foreground mt-1">({sq.marks} marks)</p>}
@@ -336,7 +406,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
                           rows={3}
                           placeholder={`Explain your reasoning for question ${sq.id}...`}
                           className={`mt-1 ${(form.formState.errors as any)?.structuredAnswers?.[index]?.reasoning ? 'border-destructive' : ''}`}
-                          disabled={isFormDisabled}
+                          disabled={isFormPermanentlyDisabled || isSubmitting}
                         />
                         {(form.formState.errors as any)?.structuredAnswers?.[index]?.reasoning && (
                           <p className="text-sm text-destructive mt-1">{(form.formState.errors as any)?.structuredAnswers?.[index]?.reasoning?.message}</p>
@@ -350,7 +420,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
                           rows={2}
                           placeholder={`Your answer for question ${sq.id}...`}
                           className={`mt-1 ${(form.formState.errors as any)?.structuredAnswers?.[index]?.solution ? 'border-destructive' : ''}`}
-                          disabled={isFormDisabled}
+                          disabled={isFormPermanentlyDisabled || isSubmitting}
                         />
                         {(form.formState.errors as any)?.structuredAnswers?.[index]?.solution && (
                           <p className="text-sm text-destructive mt-1">{(form.formState.errors as any)?.structuredAnswers?.[index]?.solution?.message}</p>
@@ -369,7 +439,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
                       rows={5}
                       placeholder="Explain your thought process and how you arrived at your solution..."
                       className={`mt-2 ${(form.formState.errors as any).reasoning ? 'border-destructive' : ''}`}
-                      disabled={isFormDisabled}
+                      disabled={isFormPermanentlyDisabled || isSubmitting}
                     />
                     {(form.formState.errors as any).reasoning && (
                       <p className="text-sm text-destructive mt-1">{(form.formState.errors as any).reasoning.message}</p>
@@ -383,7 +453,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
                       rows={3}
                       placeholder="Provide your final answer here..."
                       className={`mt-2 ${(form.formState.errors as any).solution ? 'border-destructive' : ''}`}
-                      disabled={isFormDisabled}
+                      disabled={isFormPermanentlyDisabled || isSubmitting}
                     />
                     {(form.formState.errors as any).solution && (
                       <p className="text-sm text-destructive mt-1">{(form.formState.errors as any).solution.message}</p>
@@ -393,14 +463,26 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
               )}
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t">
-                <Button
-                  type="submit"
-                  className="w-full sm:w-auto bg-brand-purple-blue hover:bg-brand-purple-blue/80 text-white"
-                  disabled={isFormDisabled || !form.formState.isDirty && !!submissionId}
-                >
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {submissionId ? 'Resubmit Answer' : 'Submit Answer'}
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => form.handleSubmit(handleSaveDraft)()}
+                        className="w-full sm:w-auto"
+                        disabled={isSaveDraftButtonDisabled}
+                    >
+                        {isSubmitting && form.formState.isSubmitting && submittedAnswer?.status !== 'submitted' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Save Draft
+                    </Button>
+                    <Button
+                        type="submit"
+                        className="w-full sm:w-auto bg-brand-purple-blue hover:bg-brand-purple-blue/80 text-white"
+                        disabled={isMainSubmitButtonDisabled}
+                    >
+                        {isSubmitting && form.formState.isSubmitting && submittedAnswer?.status !== 'draft' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {mainSubmitButtonText()}
+                    </Button>
+                </div>
                 <Button
                   type="button"
                   variant="outline"
@@ -415,7 +497,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
                   <AlertTriangle className="h-4 w-4 !text-blue-600" />
                   <AlertTitle className="font-semibold">Answer Reviewed</AlertTitle>
                   <AlertDescription>
-                    This answer has been reviewed by your tutor. If you resubmit, your previous feedback and grade will be cleared, and it will require a new review.
+                    This answer has been reviewed. If you resubmit, your previous feedback and grade will be cleared, and it will require a new review. You can save a draft if you are working on changes.
                   </AlertDescription>
                 </Alert>
               )}
@@ -425,7 +507,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Login Required</AlertTitle>
               <AlertDescription>
-                Please <Link href="/login" className="underline text-brand-purple-blue">login</Link> or <Link href="/register" className="underline text-brand-purple-blue">register</Link> to submit your answer.
+                Please <Link href="/login" className="underline text-brand-purple-blue">login</Link> or <Link href="/register" className="underline text-brand-purple-blue">register</Link> to submit your answer or save a draft.
               </AlertDescription>
             </Alert>
           )}
@@ -481,7 +563,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
         </div>
       )}
 
-      {aiFeedback && !aiFeedbackLoading && (
+      {aiFeedback && !aiFeedbackLoading && submittedAnswer?.status !== 'draft' && ( // Only show AI feedback if not a draft
         <Card className="shadow-lg rounded-lg bg-purple-50 border-purple-200">
           <CardHeader className="flex flex-row items-center space-x-3">
             <MessageSquare className="h-6 w-6 text-purple-600" />
@@ -501,3 +583,4 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
 };
 
 export default LessonDetailClient;
+

@@ -57,7 +57,7 @@ export interface Submission {
   answer?: string; // For single-answer lessons
   reasoning?: string; // For single-answer lessons
   questions?: QuestionAnswer[]; // For multi-question lessons
-  status: 'submitted' | 'reviewed';
+  status: 'draft' | 'submitted' | 'reviewed';
   tutorFeedback?: string | null;
   aiFeedback?: string | null;
   grade?: number | string | null;
@@ -82,3 +82,4 @@ export interface Feedback {
   comment?: string;
   submittedAt: FirebaseTimestamp | string;
 }
+
