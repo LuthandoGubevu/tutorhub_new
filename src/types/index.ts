@@ -3,12 +3,12 @@ import type { Timestamp as FirebaseTimestamp } from 'firebase/firestore';
 
 export interface User {
   uid: string;
-  firstName: string | null; // Changed from fullName
-  lastName: string | null; // Added
+  firstName: string | null;
+  lastName: string | null;
   email: string | null;
   photoURL?: string | null;
   cellNumber?: string;
-  grade?: string | number; // Added: e.g., "Grade 10" or 10
+  grade?: string | number;
   role?: 'student' | 'tutor' | 'admin';
   isAdmin?: boolean;
   createdAt?: FirebaseTimestamp | string;
@@ -22,6 +22,12 @@ export interface LessonBranch {
   subject: SubjectName;
 }
 
+export interface StructuredQuestionItem {
+  id: string; // e.g., "1.1.1"
+  text: string; // The question text itself
+  marks?: number; // Optional marks for the question
+}
+
 export interface Lesson {
   id: string;
   title: string;
@@ -29,8 +35,16 @@ export interface Lesson {
   branch: string;
   youtubeVideoId: string;
   content: string;
-  question: string;
-  exampleSolution: string;
+  question: string; // Main question text, can be a general title if structuredQuestions are used
+  structuredQuestions?: StructuredQuestionItem[]; // Array of sub-questions
+  exampleSolution: string; // Can be overall or point to individual solutions
+}
+
+export interface QuestionAnswer {
+  questionId: string;
+  questionText: string; // Storing the text at submission time for context
+  reasoning: string;
+  answer: string;
 }
 
 export interface Submission {
@@ -40,8 +54,9 @@ export interface Submission {
   lessonId: string;
   lessonTitle: string;
   subject: SubjectName;
-  answer: string;
-  reasoning: string;
+  answer?: string; // For single-answer lessons
+  reasoning?: string; // For single-answer lessons
+  questions?: QuestionAnswer[]; // For multi-question lessons
   status: 'submitted' | 'reviewed';
   tutorFeedback?: string | null;
   aiFeedback?: string | null;
@@ -67,4 +82,3 @@ export interface Feedback {
   comment?: string;
   submittedAt: FirebaseTimestamp | string;
 }
-

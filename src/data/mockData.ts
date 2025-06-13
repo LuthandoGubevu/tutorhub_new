@@ -1,5 +1,5 @@
 
-import type { Lesson, LessonBranch, SubjectName, Booking } from '@/types';
+import type { Lesson, LessonBranch, SubjectName, Booking, StructuredQuestionItem } from '@/types';
 
 export const subjects: Array<{ name: SubjectName; description: string; icon?: any }> = [
   { name: 'Mathematics', description: 'Explore the world of numbers, patterns, and logic.' },
@@ -29,8 +29,15 @@ export const lessons: Lesson[] = [
     branch: 'Algebra',
     youtubeVideoId: 'BhBzhKQzYiI',
     content: '<p>In this video, the focus is on nature of roots and simultaneous equations.</p><p>Understanding nature of roots helps in solving equations, graphing functions and analyzing mathematics models.</p><p>Solving simultaneous equations has a variety of applications in various fields, including physics, engineering, economics and computer science.</p>',
-    question: 'QUESTION 1\n1.1 Solve for x\n1.1.1 (3−x)(2−x) = 0 (2)\n1.1.2 2x² + 7x = 2 (Correct to 2 decimal places) (4)\n1.1.3 4 + 5x > 6x² (4)\n1.1.4 9x + 9 = 10.3x (4)\n1.2 Solve for x and y:',
-    exampleSolution: 'Solution: $(3x^2 - 5x + 2) + (x^2 + 7x - 9) = 3x^2 + x^2 - 5x + 7x + 2 - 9 = 4x^2 + 2x - 7$. The degree of the resulting polynomial is 2.',
+    question: 'QUESTION 1: Solve the following problems.', // General question title
+    structuredQuestions: [
+      { id: '1.1.1', text: '(3−x)(2−x) = 0', marks: 2 },
+      { id: '1.1.2', text: '2x² + 7x = 2 (Correct to 2 decimal places)', marks: 4 },
+      { id: '1.1.3', text: '4 + 5x > 6x²', marks: 4 },
+      { id: '1.1.4', text: '9x + 9 = 10.3x (This typically means 9^x + 9 = 10 * 3^x. Please verify intended question.)', marks: 4 },
+      { id: '1.2', text: 'Solve for x and y: (Please provide the system of equations here)', marks: 5 }, // Placeholder for actual system of equations
+    ],
+    exampleSolution: 'Solutions for each sub-question should be verified and provided. For 1.1.1: x=3 or x=2.',
   },
   {
     id: 'math-alg-002',
@@ -40,7 +47,7 @@ export const lessons: Lesson[] = [
     youtubeVideoId: 'f15zA0PhSek',
     content: '<p>Learn the techniques for solving linear equations in one variable. This includes understanding properties of equality and applying them to isolate the variable.</p>',
     question: 'Solve for $x$: $3(x - 2) + 5 = 2x - 7$.',
-    exampleSolution: '$3x - 6 + 5 = 2x - 7 \Rightarrow 3x - 1 = 2x - 7 \Rightarrow x = -6$.',
+    exampleSolution: '$3x - 6 + 5 = 2x - 7 \\Rightarrow 3x - 1 = 2x - 7 \\Rightarrow x = -6$.',
   },
   {
     id: 'math-alg-003',
@@ -140,4 +147,3 @@ export const getBranchesBySubject = (subjectName: SubjectName): LessonBranch[] =
   if (subjectName === 'Physics') return physicsBranches;
   return [];
 }
-
