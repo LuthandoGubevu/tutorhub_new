@@ -28,7 +28,7 @@ import {
 export interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email?: string, password?: string, isGoogle?: boolean) => Promise<void>;
+  login: (email?: string, password?: string, isGoogle?: boolean) => Promise<{ success: boolean; error?: any }>;
   logout: () => Promise<void>;
   register: (fullName: string, email: string, password: string, cellNumber?: string) => Promise<void>;
 }
@@ -63,17 +63,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           fullName: firebaseUser.displayName,
-          // photoURL is handled below to avoid undefined
           isAdmin: firebaseUser.uid === ADMIN_UID, 
         };
 
-        // Handle photoURL carefully
-        if (firebaseUser.photoURL) { // Only assign if it's a non-empty string
+        if (firebaseUser.photoURL) {
           appUser.photoURL = firebaseUser.photoURL;
-        } else if (firebaseUser.photoURL === null) { // Explicitly store null if it's null
+        } else if (firebaseUser.photoURL === null) {
           appUser.photoURL = null;
         }
-        // If firebaseUser.photoURL is undefined, appUser.photoURL remains unset (omitted)
+        
 
         if (db) {
           const userDocRef = doc(db, "users", firebaseUser.uid);
@@ -87,11 +85,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 cellNumber: firestoreData.cellNumber,
                 role: firestoreData.role,
                 createdAt: firestoreData.createdAt, 
-                // Overwrite photoURL from Firestore if it exists and is explicitly set (string or null)
                 photoURL: firestoreData.photoURL !== undefined ? firestoreData.photoURL : appUser.photoURL,
                 isAdmin: firestoreData.role === 'tutor' || firestoreData.role === 'admin' || firebaseUser.uid === ADMIN_UID, 
               };
-            } else { // Create user doc if it doesn't exist (e.g. first Google sign-in)
+            } else { 
               const userRole = firebaseUser.uid === ADMIN_UID ? "tutor" : "student";
               const newUserDocData: Record<string, any> = {
                 uid: firebaseUser.uid,
@@ -107,7 +104,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               }
               await setDoc(userDocRef, newUserDocData);
               appUser.role = userRole;
-              // appUser.createdAt will be set once data is re-fetched or if we assume serverTimestamp gives immediate effect locally
               appUser.isAdmin = userRole === 'tutor' || userRole === 'admin' || firebaseUser.uid === ADMIN_UID;
             }
           } catch (error) {
@@ -123,21 +119,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  const login = async (email?: string, password?: string, isGoogle?: boolean) => {
+  const login = async (email?: string, password?: string, isGoogle?: boolean): Promise<{ success: boolean; error?: any }> => {
     const auth = getFirebaseAuth();
     const db = getFirestoreDb();
     if (!auth || !db) {
       console.error("Firebase auth or db not initialized for login.");
-      throw new Error("Firebase services not available.");
+      return { success: false, error: new Error("Firebase services not available.") };
     }
     setLoading(true);
     try {
       let firebaseUser: FirebaseUser | null = null;
+
       if (isGoogle) {
         const provider = new GoogleAuthProvider();
         const result = await signInWithPopup(auth, provider);
         firebaseUser = result.user;
         
+        // Ensure user document exists or is created after Google sign-in
         const userDocRef = doc(db, "users", firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (!userDocSnap.exists()) {
@@ -156,12 +154,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
           await setDoc(userDocRef, userData);
         }
-
       } else if (email && password) {
         const result = await signInWithEmailAndPassword(auth, email, password);
         firebaseUser = result.user;
       } else {
-        throw new Error("Email/password or Google sign-in method must be chosen.");
+        return { success: false, error: new Error("Login method requires email/password or Google flag.") };
       }
       
       if (firebaseUser) {
@@ -173,7 +170,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             fullName: firestoreData.fullName || firebaseUser.displayName,
-            // photoURL from Firestore or fallback to firebaseUser, then handle null/undefined
             photoURL: firestoreData.photoURL !== undefined ? firestoreData.photoURL : (firebaseUser.photoURL || null),
             cellNumber: firestoreData.cellNumber,
             role: firestoreData.role,
@@ -188,11 +184,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         } else {
            console.warn("User signed in but no Firestore document found immediately after login. User object might be incomplete.");
+           // Create a temporary user object for redirection
            const tempAppUser: User = { 
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
                 fullName: firebaseUser.displayName,
-                photoURL: firebaseUser.photoURL || null,
+                photoURL: firebaseUser.photoURL || null, 
                 isAdmin: firebaseUser.uid === ADMIN_UID,
            };
            setUser(tempAppUser); 
@@ -202,11 +199,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
              router.push('/dashboard');
            }
         }
+        return { success: true };
+      } else {
+        // This case should ideally not be reached if Firebase auth calls succeed and return a user.
+        return { success: false, error: new Error("Login process completed but no user object was returned from Firebase.")};
       }
     } catch (error) {
-      console.error("Login error:", error);
-      // setLoading(false) is handled by finally
-      throw error;
+      console.error("Login error in AuthContext:", error); // Log the error for debugging
+      return { success: false, error: error }; // Return an error object
     } finally {
         setLoading(false);
     }
@@ -279,7 +279,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           cellNumber: cellNumber || undefined,
           photoURL: firebaseUser.photoURL || null,
           isAdmin: userRole === 'tutor' || userRole === 'admin' || firebaseUser.uid === ADMIN_UID,
-          // createdAt will be a server timestamp, client representation might differ until re-fetch
         };
         setUser(appUser);
         
@@ -291,43 +290,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error("Registration error:", error);
-      // setLoading(false) is handled by finally
-      throw error;
+      throw error; // Re-throw for RegisterForm to handle
     } finally {
         setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (loading) return; // Wait for auth state to be determined (from onAuthStateChanged)
+    if (loading) return; 
 
     const publicPaths = ['/', '/login', '/register'];
-    // Allow /lessons and /lesson/:lessonId for anyone
     const isPublicLessonPath = pathname.startsWith('/lessons') || pathname.startsWith('/lesson/');
     const isAuthPage = pathname === '/login' || pathname === '/register';
 
-    if (!user) { // User is not logged in
-      // If trying to access a protected page (not public, not lessons, not auth pages themselves)
+    if (!user) { 
       if (!publicPaths.includes(pathname) && !isPublicLessonPath && !isAuthPage) {
         router.push('/login');
       }
-    } else { // User is logged in
-      if (isAuthPage) { // If logged in user is on an auth page (/login or /register)
+    } else { 
+      if (isAuthPage) { 
         if (user.isAdmin) {
           router.push('/tutor/dashboard');
         } else {
           router.push('/dashboard');
         }
-      } else { // Logged in user is on a non-auth page
-        // Specific handling for admins on student pages
+      } else { 
         if (user.isAdmin && (pathname === '/dashboard' || pathname === '/book-session')) {
           router.push('/tutor/dashboard');
         }
-        // Specific handling for students on admin pages
         else if (!user.isAdmin && pathname === '/tutor/dashboard') {
           router.push('/dashboard');
         }
-        // If user is on landing page ('/'), redirect them to their dashboard
         else if (pathname === '/') {
            if (user.isAdmin) {
             router.push('/tutor/dashboard');

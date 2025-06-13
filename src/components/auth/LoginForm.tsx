@@ -37,10 +37,10 @@ const LoginForm = () => {
 
   const onSubmit = async (data: LoginFormValues) => {
     setError(null);
-    try {
-      await login(data.email, data.password);
-      // Redirect is handled by AuthContext
-    } catch (err) {
+    const result = await login(data.email, data.password);
+
+    if (!result.success) {
+      const err = result.error;
       if (err instanceof FirebaseError) {
         if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
           setError("Invalid email or password. Please check your credentials and try again.");
@@ -53,15 +53,16 @@ const LoginForm = () => {
         setError("An unknown login error occurred. Please try again.");
       }
     }
+    // On success, redirection is handled by AuthContext itself.
   };
 
   const handleGoogleSignIn = async () => {
     setError(null);
-    try {
-      await login(undefined, undefined, true); // Indicate Google Sign-In
-    } catch (err) {
+    const result = await login(undefined, undefined, true); // Indicate Google Sign-In
+    
+    if (!result.success) {
+      const err = result.error;
        if (err instanceof FirebaseError) {
-        // Handle specific Google Sign-In errors if needed, e.g., auth/popup-closed-by-user
         setError(err.message || "Google Sign-In failed. Please try again.");
       } else if (err instanceof Error) {
         setError(err.message || "Google Sign-In failed.");
@@ -146,3 +147,4 @@ const LoginForm = () => {
 };
 
 export default LoginForm;
+
