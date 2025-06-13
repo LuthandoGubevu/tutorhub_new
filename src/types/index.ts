@@ -41,8 +41,9 @@ export interface Submission {
   answer: string; // Student's solution
   reasoning: string;
   status: 'submitted' | 'reviewed';
-  tutorFeedback?: string;
-  aiFeedback?: string;
+  tutorFeedback?: string | null; // Can be explicitly null
+  aiFeedback?: string | null; // Can be explicitly null
+  grade?: number | string | null; // New field: stores the mark (e.g., 75 or "A+"), can be null
   timestamp: FirebaseTimestamp | string; // Firestore Timestamp or ISO string for submission time
   reviewedAt?: FirebaseTimestamp | string; // Optional: Firestore Timestamp for review time
 }

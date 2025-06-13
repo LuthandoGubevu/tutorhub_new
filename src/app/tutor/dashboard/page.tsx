@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Clock, Eye, FileText, Users, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { CheckCircle, Clock, Eye, FileText, Users, Loader2, Award } from 'lucide-react';
 import { getLessonById } from '@/data/mockData';
 import type { Submission } from '@/types';
 import { useState, useEffect } from 'react';
@@ -30,6 +31,7 @@ import { formatDistanceToNow } from 'date-fns';
 const TutorDashboardPage = () => {
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [tutorComment, setTutorComment] = useState('');
+  const [currentGrade, setCurrentGrade] = useState<string | number>('');
   const { toast } = useToast();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(true);
@@ -58,7 +60,6 @@ const TutorDashboardPage = () => {
       });
       setSubmissions(fetchedSubmissions);
 
-      // Update metrics
       const total = fetchedSubmissions.length;
       const pending = fetchedSubmissions.filter(sub => sub.status === 'submitted').length;
       const reviewed = fetchedSubmissions.filter(sub => sub.status === 'reviewed').length;
@@ -87,10 +88,15 @@ const TutorDashboardPage = () => {
   ];
 
   const handleReviewSubmit = async () => {
-    if (!selectedSubmission || !tutorComment || !selectedSubmission.id) {
-      toast({ title: "Error", description: "Please select a submission and enter a comment.", variant: "destructive" });
+    if (!selectedSubmission || !selectedSubmission.id) {
+      toast({ title: "Error", description: "Please select a submission.", variant: "destructive" });
       return;
     }
+    if (!tutorComment && !currentGrade) {
+        toast({ title: "Missing Information", description: "Please provide feedback or a grade.", variant: "destructive" });
+        return;
+    }
+
     const db = getFirestoreDb();
     if(!db) {
         toast({title: "Error", description: "Database not available.", variant: "destructive"});
@@ -99,14 +105,22 @@ const TutorDashboardPage = () => {
 
     const submissionRef = doc(db, "submissions", selectedSubmission.id);
     try {
-      await updateDoc(submissionRef, {
+      const updatePayload: Partial<Submission> = {
         status: 'reviewed',
-        tutorFeedback: tutorComment,
         reviewedAt: serverTimestamp(),
-      });
-      toast({ title: "Feedback Submitted", description: `Feedback for ${selectedSubmission.lessonTitle} saved.`, className: "bg-brand-green text-white" });
-      setSelectedSubmission(null); // Close dialog by resetting selected submission
+      };
+      if (tutorComment) {
+        updatePayload.tutorFeedback = tutorComment;
+      }
+      if (currentGrade || currentGrade === 0) { // Allow 0 as a grade
+        updatePayload.grade = currentGrade;
+      }
+
+      await updateDoc(submissionRef, updatePayload);
+      toast({ title: "Review Submitted", description: `Review for ${selectedSubmission.lessonTitle} saved.`, className: "bg-brand-green text-white" });
+      setSelectedSubmission(null); 
       setTutorComment('');
+      setCurrentGrade('');
     } catch (error) {
       console.error("Error submitting review:", error);
       toast({ title: "Error", description: "Failed to submit review.", variant: "destructive" });
@@ -122,7 +136,6 @@ const TutorDashboardPage = () => {
     }
     return 'Invalid date';
   };
-
 
   return (
     <div className="space-y-8">
@@ -166,6 +179,7 @@ const TutorDashboardPage = () => {
                   <TableHead>Lesson Title</TableHead>
                   <TableHead>Submitted</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Grade</TableHead>
                   <TableHead>Answer Preview</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -182,21 +196,31 @@ const TutorDashboardPage = () => {
                         {submission.status}
                       </Badge>
                     </TableCell>
+                    <TableCell>
+                      {submission.grade !== undefined && submission.grade !== null ? (
+                        <Badge variant="outline" className="font-semibold">{submission.grade}</Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">N/A</span>
+                      )}
+                    </TableCell>
                     <TableCell className="max-w-xs truncate">{submission.answer}</TableCell>
                     <TableCell className="text-right">
                        <Dialog open={selectedSubmission?.id === submission.id} onOpenChange={(open) => {
                            if (!open) {
                                setSelectedSubmission(null);
                                setTutorComment('');
+                               setCurrentGrade('');
                            } else {
                                setSelectedSubmission(submission);
                                setTutorComment(submission.tutorFeedback || '');
+                               setCurrentGrade(submission.grade ?? '');
                            }
                        }}>
                         <DialogTrigger asChild>
                            <Button variant="outline" size="sm" onClick={() => {
                                setSelectedSubmission(submission);
                                setTutorComment(submission.tutorFeedback || '');
+                               setCurrentGrade(submission.grade ?? '');
                            }}>
                             <Eye className="mr-2 h-4 w-4" /> Review
                           </Button>
@@ -228,9 +252,22 @@ const TutorDashboardPage = () => {
                                 <CardContent><p className="text-purple-800 whitespace-pre-wrap">{selectedSubmission.aiFeedback}</p></CardContent>
                               </Card>
                             )}
+                            <div className="space-y-2">
+                                <Label htmlFor="grade" className="font-semibold flex items-center">
+                                    <Award className="mr-2 h-4 w-4 text-yellow-500"/> Grade (e.g., 75, B+)
+                                </Label>
+                                <Input
+                                    id="grade"
+                                    value={currentGrade}
+                                    onChange={(e) => setCurrentGrade(e.target.value)}
+                                    placeholder="Enter grade..."
+                                    className="mt-1"
+                                    disabled={selectedSubmission.status === 'reviewed' && !!selectedSubmission.grade} 
+                                />
+                            </div>
                             <div>
                                 <Label htmlFor="tutorComment" className="font-semibold">
-                                    {selectedSubmission.status === 'reviewed' ? 'Your Feedback (Submitted)' : 'Your Feedback'}
+                                    {selectedSubmission.status === 'reviewed' && selectedSubmission.tutorFeedback ? 'Your Feedback (Submitted)' : 'Your Feedback'}
                                 </Label>
                                 <Textarea
                                     id="tutorComment"
@@ -239,17 +276,17 @@ const TutorDashboardPage = () => {
                                     rows={4}
                                     placeholder="Provide constructive feedback..."
                                     className="mt-1"
-                                    disabled={selectedSubmission.status === 'reviewed'}
+                                    disabled={selectedSubmission.status === 'reviewed' && !!selectedSubmission.tutorFeedback}
                                 />
                             </div>
                           </div>
                           <DialogFooter>
-                            {selectedSubmission.status === 'submitted' && (
+                            {selectedSubmission.status === 'submitted' || !(selectedSubmission.grade && selectedSubmission.tutorFeedback) ? (
                             <Button onClick={handleReviewSubmit} className="bg-brand-purple-blue hover:bg-brand-purple-blue/80 text-white">
-                                Submit Review
+                                {selectedSubmission.status === 'reviewed' ? 'Update Review' : 'Submit Review'}
                             </Button>
-                            )}
-                             <Button variant="outline" onClick={() => {setSelectedSubmission(null); setTutorComment(''); }}>Close</Button>
+                            ) : null}
+                             <Button variant="outline" onClick={() => {setSelectedSubmission(null); setTutorComment(''); setCurrentGrade(''); }}>Close</Button>
                           </DialogFooter>
                         </DialogContent>
                         )}

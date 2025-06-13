@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import FeedbackForm from './FeedbackForm';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, MessageSquare, Award } from 'lucide-react';
 import { getAIFeedback } from '@/app/actions/feedbackActions';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -86,7 +86,6 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
           setSubmissionId(subId);
           form.reset({ reasoning: docData.reasoning, solution: docData.answer });
           if (docData.aiFeedback) setAiFeedback(docData.aiFeedback);
-          // Retain tutor feedback if it exists on the submission
         } else {
           setSubmittedAnswer(null);
           setSubmissionId(null);
@@ -115,36 +114,28 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
     }
 
     setIsSubmitting(true);
-    setAiFeedback(null); // Clear previous AI feedback from UI
+    setAiFeedback(null); 
 
     let currentSubmissionId = submissionId;
+    let payloadForFirestore: Partial<Submission> & { timestamp: any };
     
     try {
-      let payloadForFirestore: Partial<Submission> & { timestamp: any };
-
       if (submissionId) {
-        // This is an UPDATE to an existing submission
         payloadForFirestore = {
           reasoning: data.reasoning,
           answer: data.solution,
-          status: 'submitted', // Reset status
-          timestamp: serverTimestamp(), // Update timestamp
-          aiFeedback: null, // Explicitly clear AI feedback in Firestore for regeneration
+          status: 'submitted', 
+          timestamp: serverTimestamp(), 
+          aiFeedback: null, 
+          tutorFeedback: null,
+          grade: null, 
         };
-        // Preserve existing tutor feedback if it was 'reviewed' and exists
-        if (submittedAnswer?.status === 'reviewed' && typeof submittedAnswer.tutorFeedback === 'string') {
-          payloadForFirestore.tutorFeedback = submittedAnswer.tutorFeedback;
-        } else if (submittedAnswer && Object.prototype.hasOwnProperty.call(submittedAnswer, 'tutorFeedback') && submittedAnswer.tutorFeedback === null) {
-           payloadForFirestore.tutorFeedback = null; // Preserve explicit null
-        }
-        // If tutorFeedback was undefined on submittedAnswer or status wasn't reviewed, it's omitted from payload.
-
+        
         const submissionRef = doc(db, "submissions", submissionId);
         await updateDoc(submissionRef, payloadForFirestore);
         console.log("Submission updated:", submissionId);
-        toast({ title: "Answer Updated!", description: "Your answer has been updated.", className: "bg-brand-green text-white" });
+        toast({ title: "Answer Updated!", description: "Your answer has been re-submitted for review.", className: "bg-brand-green text-white" });
       } else {
-        // This is a NEW submission (addDoc)
         payloadForFirestore = {
           lessonId: lesson.id,
           lessonTitle: lesson.title,
@@ -155,17 +146,14 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
           answer: data.solution,
           status: 'submitted',
           timestamp: serverTimestamp(),
-          // tutorFeedback and aiFeedback are omitted by default for new submissions,
-          // as they are not defined at this point.
         };
         const docRef = await addDoc(collection(db, "submissions"), payloadForFirestore);
         currentSubmissionId = docRef.id;
-        setSubmissionId(docRef.id); // Store new submission ID
+        setSubmissionId(docRef.id); 
         console.log("Submission added with ID:", docRef.id);
         toast({ title: "Answer Submitted!", description: "Your answer has been saved.", className: "bg-brand-green text-white" });
       }
 
-      // Common: AI Feedback Generation
       if (currentSubmissionId) {
         setAiFeedbackLoading(true);
         const aiResult = await getAIFeedback({
@@ -173,13 +161,13 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
           studentAnswer: data.solution,
           correctSolution: lesson.exampleSolution,
           studentReasoning: data.reasoning,
-          subject: lesson.subject as SubjectName, // Already asserted by Lesson type
+          subject: lesson.subject as SubjectName, 
         });
 
         if (aiResult.success && aiResult.feedback) {
-          setAiFeedback(aiResult.feedback); // Update UI
+          setAiFeedback(aiResult.feedback); 
           const submissionToUpdateRef = doc(db, "submissions", currentSubmissionId);
-          await updateDoc(submissionToUpdateRef, { aiFeedback: aiResult.feedback }); // Update Firestore with AI feedback
+          await updateDoc(submissionToUpdateRef, { aiFeedback: aiResult.feedback }); 
           toast({ title: "AI Feedback Received!", description: "Check the AI feedback section below." });
         } else if (aiResult.error) {
           toast({ title: "AI Feedback Error", description: aiResult.error, variant: "destructive" });
@@ -187,7 +175,6 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
       }
     } catch (error: any) {
       console.error("Error submitting/updating answer:", error);
-      // Check if it's a FirebaseError and log specific details
       if (error.name === 'FirebaseError') {
         console.error("Firebase Error Code:", error.code);
         console.error("Firebase Error Message:", error.message);
@@ -249,7 +236,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
                 Status: {submittedAnswer.status}
               </Badge>
               <p className="text-xs text-muted-foreground mt-1">
-                Submitted {formatSubmissionTimestamp(submittedAnswer.timestamp)}
+                Last submitted {formatSubmissionTimestamp(submittedAnswer.timestamp)}
               </p>
             </div>
           )}
@@ -292,7 +279,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
                   disabled={isSubmitting || (!!submittedAnswer && submittedAnswer.status === 'reviewed')}
                 >
                   {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {submittedAnswer && submittedAnswer.status !== 'reviewed' ? (submissionId ? 'Update Answer' : 'Submit Answer') : (submittedAnswer?.status === 'reviewed' ? 'Answer Reviewed' : 'Submit Answer')}
+                  {submissionId ? 'Resubmit Answer' : 'Submit Answer'}
                 </Button>
                 <Button
                   type="button"
@@ -303,6 +290,15 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
                   {showExampleSolution ? 'Hide' : 'Show'} Example Solution
                 </Button>
               </div>
+               {submittedAnswer && submittedAnswer.status === 'reviewed' && (
+                <Alert variant="default" className="bg-blue-50 border-blue-200 text-blue-700">
+                  <AlertTriangle className="h-4 w-4 !text-blue-600" />
+                  <AlertTitle className="font-semibold">Answer Reviewed</AlertTitle>
+                  <AlertDescription>
+                    This answer has been reviewed by your tutor. If you resubmit, your previous feedback and grade will be cleared.
+                  </AlertDescription>
+                </Alert>
+              )}
             </form>
           ) : (
             <Alert>
@@ -326,8 +322,32 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
           </CardContent>
         </Card>
       )}
+      
+      {submittedAnswer && submittedAnswer.status === 'reviewed' && submittedAnswer.grade && (
+         <Card className="shadow-lg rounded-lg bg-indigo-50 border-indigo-200">
+          <CardHeader className="flex flex-row items-center space-x-3">
+             <Award className="h-6 w-6 text-indigo-600" />
+            <CardTitle className="font-headline text-xl text-indigo-700">Your Grade</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-indigo-800 text-3xl font-bold">{submittedAnswer.grade}</p>
+          </CardContent>
+        </Card>
+      )}
 
-      {aiFeedbackLoading && (
+      {submittedAnswer && submittedAnswer.status === 'reviewed' && submittedAnswer.tutorFeedback && (
+         <Card className="shadow-lg rounded-lg bg-blue-50 border-blue-200">
+          <CardHeader className="flex flex-row items-center space-x-3">
+             <CheckCircle className="h-6 w-6 text-blue-600" />
+            <CardTitle className="font-headline text-xl text-blue-700">Tutor Feedback</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-blue-800 whitespace-pre-wrap">{submittedAnswer.tutorFeedback}</p>
+          </CardContent>
+        </Card>
+      )}
+      
+      {aiFeedbackLoading && !aiFeedback && (
         <div className="flex items-center justify-center p-6 bg-card rounded-lg shadow-md">
           <Loader2 className="mr-2 h-5 w-5 animate-spin text-brand-purple-blue" />
           <p className="text-brand-purple-blue">Generating AI Feedback...</p>
@@ -346,17 +366,6 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
         </Card>
       )}
 
-      {submittedAnswer && submittedAnswer.status === 'reviewed' && submittedAnswer.tutorFeedback && (
-         <Card className="shadow-lg rounded-lg bg-blue-50 border-blue-200">
-          <CardHeader className="flex flex-row items-center space-x-3">
-             <CheckCircle className="h-6 w-6 text-blue-600" />
-            <CardTitle className="font-headline text-xl text-blue-700">Tutor Feedback</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-blue-800 whitespace-pre-wrap">{submittedAnswer.tutorFeedback}</p>
-          </CardContent>
-        </Card>
-      )}
 
       <FeedbackForm lessonId={lesson.id} />
     </div>
@@ -364,5 +373,3 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
 };
 
 export default LessonDetailClient;
-
-    

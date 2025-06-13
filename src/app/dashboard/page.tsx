@@ -9,7 +9,7 @@ import PerformanceChart, { mockPerformanceData } from '@/components/dashboard/Pe
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, BookOpenText, CheckSquare, ListChecks, Loader2, Sigma, AtomIcon, TrendingUp } from 'lucide-react';
+import { AlertCircle, BookOpenText, CheckSquare, ListChecks, Loader2, Sigma, AtomIcon, TrendingUp, Award } from 'lucide-react';
 import Link from 'next/link';
 import { lessons as allLessons } from '@/data/mockData';
 import type { Submission } from '@/types';
@@ -25,6 +25,32 @@ import {
   Timestamp
 } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+
+interface GradeBadgeProps {
+  variant: 'default' | 'secondary' | 'destructive' | 'outline';
+  className: string;
+}
+
+const getGradeBadgeProps = (grade?: number | string | null): GradeBadgeProps => {
+  if (grade === null || grade === undefined || grade === '') {
+    return { variant: 'outline', className: 'text-muted-foreground border-gray-300' };
+  }
+
+  const numericGrade = typeof grade === 'string' ? parseFloat(grade) : grade;
+  const letterGrade = typeof grade === 'string' ? grade.toUpperCase() : '';
+
+  if ((letterGrade.startsWith('A') || letterGrade.startsWith('B')) || (!isNaN(numericGrade) && numericGrade >= 70)) {
+    return { variant: 'default', className: 'bg-green-500 hover:bg-green-600 text-white border-green-600' };
+  }
+  if ((letterGrade.startsWith('C') || letterGrade.startsWith('D')) || (!isNaN(numericGrade) && numericGrade >= 50)) {
+    return { variant: 'default', className: 'bg-yellow-400 hover:bg-yellow-500 text-yellow-900 border-yellow-500' };
+  }
+  if (letterGrade === 'F' || (!isNaN(numericGrade) && numericGrade < 50)) {
+    return { variant: 'destructive', className: 'bg-red-500 hover:bg-red-600 text-white border-red-600' };
+  }
+  return { variant: 'outline', className: 'text-foreground border-gray-400 font-medium' }; // Default for non-standard strings
+};
+
 
 const DashboardPage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -62,7 +88,7 @@ const DashboardPage = () => {
       });
 
       return () => unsubscribe();
-    } else if (!authLoading) { // If user is not logged in and auth is not loading
+    } else if (!authLoading) { 
       setLoadingSubmissions(false);
       setSubmissions([]);
     }
@@ -180,22 +206,32 @@ const DashboardPage = () => {
                   </div>
                 ) : submissions.length > 0 ? (
                   <ul className="space-y-4">
-                    {submissions.map((submission: Submission) => (
+                    {submissions.map((submission: Submission) => {
+                      const gradeBadgeProps = getGradeBadgeProps(submission.grade);
+                      return (
                       <li key={submission.id} className="p-4 border rounded-md shadow-sm bg-white">
-                        <div className="flex justify-between items-start">
+                        <div className="flex justify-between items-start mb-2">
                           <div>
                             <h4 className="font-semibold text-brand-navy">{submission.lessonTitle}</h4>
                             <p className="text-xs text-muted-foreground">
                               {submission.subject} | Submitted {formatSubmissionTimestamp(submission.timestamp)}
                             </p>
                           </div>
-                          <Badge variant={submission.status === 'reviewed' ? 'default' : 'secondary'}
-                                 className={`${submission.status === 'reviewed' ? 'bg-brand-green text-white' : 'bg-yellow-400 text-yellow-900'}`}>
-                            {submission.status}
-                          </Badge>
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge variant={submission.status === 'reviewed' ? 'default' : 'secondary'}
+                                  className={`${submission.status === 'reviewed' ? 'bg-brand-green text-white' : 'bg-yellow-400 text-yellow-900'}`}>
+                              {submission.status}
+                            </Badge>
+                             {submission.status === 'reviewed' && (
+                                <Badge variant={gradeBadgeProps.variant} className={gradeBadgeProps.className}>
+                                  Grade: {submission.grade ?? 'N/A'}
+                                </Badge>
+                            )}
+                          </div>
                         </div>
                         <p className="text-sm mt-2 text-gray-600"><strong>Reasoning:</strong> {submission.reasoning.substring(0,100)}{submission.reasoning.length > 100 ? '...' : ''}</p>
                         <p className="text-sm mt-1 text-gray-600"><strong>Answer:</strong> {submission.answer.substring(0,100)}{submission.answer.length > 100 ? '...' : ''}</p>
+                        
                         {submission.tutorFeedback && (
                            <p className="text-sm mt-2 pt-2 border-t"><strong>Tutor Feedback:</strong> {submission.tutorFeedback}</p>
                         )}
@@ -206,7 +242,7 @@ const DashboardPage = () => {
                           <Link href={`/lesson/${submission.lessonId}?submissionId=${submission.id}`}>View Submission</Link>
                         </Button>
                       </li>
-                    ))}
+                    )})}
                   </ul>
                 ) : (
                   <p className="text-muted-foreground text-center py-4">No submissions yet. Start a lesson to submit your first answer!</p>
@@ -228,7 +264,6 @@ const DashboardPage = () => {
                 <CardDescription>Important updates and notifications.</CardDescription>
               </CardHeader>
               <CardContent>
-                {/* Mock alerts - can be replaced with Firestore data later */}
                 <div className="space-y-3">
                   <div className="flex items-start p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-md">
                     <AlertCircle className="h-5 w-5 text-yellow-500 mr-3 mt-1" />
