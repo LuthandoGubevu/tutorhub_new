@@ -20,6 +20,7 @@ import {
   onSnapshot,
   deleteDoc,
   writeBatch,
+  getDocs, // Ensure getDocs is imported here
   connectFirestoreEmulator,
   enableIndexedDbPersistence
 } from "firebase/firestore";
@@ -119,5 +120,6 @@ export {
   Timestamp,
   onSnapshot,
   deleteDoc,
-  writeBatch
+  writeBatch,
+  getDocs // Added getDocs to the export list
 };
