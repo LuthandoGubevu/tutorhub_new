@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CheckCircle, Clock, Eye, FileText, Users, Loader2, Award } from 'lucide-react';
+import { CheckCircle, Clock, Eye, FileText, Users, Loader2, Award, Users2 } from 'lucide-react'; // Added Users2
 import { getLessonById } from '@/data/mockData';
 import type { Submission } from '@/types';
 import { useState, useEffect } from 'react';
@@ -24,7 +24,9 @@ import {
   doc,
   updateDoc,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  getDocs, // Added getDocs
+  where // Added where
 } from '@/lib/firebase';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -40,10 +42,10 @@ const TutorDashboardPage = () => {
     pendingReviews: 0,
     reviewedCount: 0,
     activeStudents: 0,
+    registeredStudents: 0, // New field for registered students
   });
 
   useEffect(() => {
-    setLoadingSubmissions(true);
     const db = getFirestoreDb();
     if (!db) {
       toast({ title: "Error", description: "Database not available.", variant: "destructive" });
@@ -51,40 +53,74 @@ const TutorDashboardPage = () => {
       return;
     }
 
-    const q = query(collection(db, "submissions"), orderBy("timestamp", "desc"));
+    let unsubscribeSubmissions = () => {}; // Initialize to a no-op
 
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const fetchedSubmissions: Submission[] = [];
-      querySnapshot.forEach((doc) => {
-        fetchedSubmissions.push({ id: doc.id, ...doc.data() } as Submission);
+    const fetchData = async () => {
+      setLoadingSubmissions(true); // Set loading true at the start of combined fetch
+      let fetchedRegisteredStudents = 0;
+
+      try {
+        // Fetch registered students
+        const usersQuery = query(collection(db, "users"), where("role", "==", "student"));
+        const usersSnapshot = await getDocs(usersQuery);
+        fetchedRegisteredStudents = usersSnapshot.size;
+        // Update metrics with registered students count immediately if needed, or wait for submissions
+        // For now, we'll update it within handleSubmissionsUpdate or after onSnapshot setup
+
+      } catch (error) {
+        console.error("Error fetching registered students:", error);
+        toast({ title: "Error", description: "Could not fetch registered student count.", variant: "destructive" });
+        // Potentially set loadingSubmissions false here if this is critical and submissions part shouldn't run
+      }
+
+      // This function will be called by onSnapshot for submissions
+      const handleSubmissionsUpdate = (submissionDocs: Submission[]) => {
+        const total = submissionDocs.length;
+        const pending = submissionDocs.filter(sub => sub.status === 'submitted').length;
+        const reviewed = submissionDocs.filter(sub => sub.status === 'reviewed').length;
+        const activeStudentIds = new Set(submissionDocs.map(sub => sub.studentId)).size;
+
+        setMetrics({
+          totalSubmissions: total,
+          pendingReviews: pending,
+          reviewedCount: reviewed,
+          activeStudents: activeStudentIds,
+          registeredStudents: fetchedRegisteredStudents, // Use the count fetched earlier
+        });
+        setSubmissions(submissionDocs);
+        setLoadingSubmissions(false); // Set loading to false after all data is processed
+      };
+      
+      // Setup onSnapshot for submissions
+      const submissionsQuery = query(collection(db, "submissions"), orderBy("timestamp", "desc"));
+      unsubscribeSubmissions = onSnapshot(submissionsQuery, (querySnapshot) => {
+        const fetchedSubmissionsData: Submission[] = [];
+        querySnapshot.forEach((doc) => {
+          fetchedSubmissionsData.push({ id: doc.id, ...doc.data() } as Submission);
+        });
+        handleSubmissionsUpdate(fetchedSubmissionsData); 
+      }, (error) => {
+        console.error("Error fetching submissions: ", error);
+        toast({ title: "Error", description: "Could not fetch submissions.", variant: "destructive" });
+        setMetrics(prevMetrics => ({ ...prevMetrics, registeredStudents: fetchedRegisteredStudents })); // Still set registered students if submissions fail
+        setLoadingSubmissions(false);
       });
-      setSubmissions(fetchedSubmissions);
+    };
 
-      const total = fetchedSubmissions.length;
-      const pending = fetchedSubmissions.filter(sub => sub.status === 'submitted').length;
-      const reviewed = fetchedSubmissions.filter(sub => sub.status === 'reviewed').length;
-      const students = new Set(fetchedSubmissions.map(sub => sub.studentId)).size;
-      setMetrics({
-        totalSubmissions: total,
-        pendingReviews: pending,
-        reviewedCount: reviewed,
-        activeStudents: students,
-      });
-      setLoadingSubmissions(false);
-    }, (error) => {
-      console.error("Error fetching submissions: ", error);
-      toast({ title: "Error", description: "Could not fetch submissions.", variant: "destructive" });
-      setLoadingSubmissions(false);
-    });
+    fetchData();
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeSubmissions();
+    };
   }, [toast]);
+
 
   const metricCardsData = [
     { title: 'Total Submissions', value: metrics.totalSubmissions, icon: <FileText className="h-5 w-5 text-muted-foreground" /> },
     { title: 'Pending Reviews', value: metrics.pendingReviews, icon: <Clock className="h-5 w-5 text-muted-foreground" /> },
     { title: 'Reviewed Count', value: metrics.reviewedCount, icon: <CheckCircle className="h-5 w-5 text-muted-foreground" /> },
     { title: 'Active Students', value: metrics.activeStudents, icon: <Users className="h-5 w-5 text-muted-foreground" /> },
+    { title: 'Total Registered Students', value: metrics.registeredStudents, icon: <Users2 className="h-5 w-5 text-muted-foreground" /> }, // New card
   ];
 
   const handleReviewSubmit = async () => {
@@ -146,7 +182,7 @@ const TutorDashboardPage = () => {
         <p className="text-lg text-muted-foreground">Overview of student submissions and activity.</p>
       </section>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6"> 
         {metricCardsData.map(metric => (
           <Card key={metric.title} className="shadow-lg rounded-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -308,3 +344,6 @@ const TutorDashboardPage = () => {
 };
 
 export default TutorDashboardPage;
+
+
+    
