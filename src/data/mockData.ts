@@ -96,7 +96,7 @@ export const lessons: Lesson[] = [
     title: 'Algebra Lesson 5',
     subject: 'Mathematics',
     branch: 'Algebra',
-    youtubeVideoId: 'dQw4w9WgXcQ', // Placeholder video ID
+    youtubeVideoId: 'IJgMUZuyLQk',
     content: '<p>In this video, the focus is on quadratic equations, inequality, exponents and simultaneous equations.</p><p>There are several ways of solving quadratic equations like, factors,  completing the square or quadratic formula.</p><p>An inequality is a mathematical statement that compares to expressions using greater than, less than or equal to, or greater than or equal to.</p><p>Exponents are mathematical operations that involve raising a number to a power. They are used to represent repeated multiplication.</p><p>Solving simultaneous equations has a variety of applications in various fields, including physics, engineering, economics and computer science.</p>',
     question: 'QUESTION 1.1: Solve for x:',
     structuredQuestions: [
@@ -174,4 +174,5 @@ export const getBranchesBySubject = (subjectName: SubjectName): LessonBranch[] =
   if (subjectName === 'Physics') return physicsBranches;
   return [];
 }
+
 
