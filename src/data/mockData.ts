@@ -93,13 +93,18 @@ export const lessons: Lesson[] = [
   },
   {
     id: 'math-alg-005',
-    title: 'Algebra Lesson 5 (Placeholder)',
+    title: 'Algebra Lesson 5',
     subject: 'Mathematics',
     branch: 'Algebra',
     youtubeVideoId: 'dQw4w9WgXcQ', // Placeholder video ID
     content: '<p>In this video, the focus is on quadratic equations, inequality, exponents and simultaneous equations.</p><p>There are several ways of solving quadratic equations like, factors,  completing the square or quadratic formula.</p><p>An inequality is a mathematical statement that compares to expressions using greater than, less than or equal to, or greater than or equal to.</p><p>Exponents are mathematical operations that involve raising a number to a power. They are used to represent repeated multiplication.</p><p>Solving simultaneous equations has a variety of applications in various fields, including physics, engineering, economics and computer science.</p>',
-    question: 'Placeholder question for Algebra Lesson 5. For example: Solve the system of equations: $y = 2x + 1$ and $y = -x + 4$.',
-    exampleSolution: 'Placeholder solution for Algebra Lesson 5. For example: $x=1, y=3$.',
+    question: 'QUESTION 1.1: Solve for x:',
+    structuredQuestions: [
+      { id: '1.1.1', text: '2x(x² - 1) = 0', marks: 2 },
+      { id: '1.1.2', text: 'x - 6 + (2/x) = 0 ; x ≠ 0 (correct to TWO decimal places)', marks: 4 },
+      { id: '1.1.3', text: '(x - 1)(x + 4) ≥ 6', marks: 3 },
+    ],
+    exampleSolution: 'Solutions for each sub-question should be detailed by the tutor.',
   },
   // Mathematics - Calculus
   {
