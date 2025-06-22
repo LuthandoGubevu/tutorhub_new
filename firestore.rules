@@ -3,40 +3,39 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Function to check if the requesting user is a tutor or admin
-    function isTutorOrAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['tutor', 'admin'];
-    }
 
-    // Rules for the 'users' collection
+    // USERS COLLECTION
     match /users/{userId} {
-      // Users can create their own user document when they register
-      allow create: if request.auth.uid == userId;
-      
-      // Users can read their own data. Tutors/Admins can read any user's data.
-      allow read: if request.auth.uid == userId || isTutorOrAdmin();
+      // Allow users to create their own document, but only with the 'student' role.
+      // This is crucial for the registration flow to succeed.
+      allow create: if request.auth.uid == userId &&
+                       request.resource.data.role == 'student';
 
-      // Users can update their own data.
-      allow update: if request.auth.uid == userId;
+      // Users can read their own profile. Tutors/Admins can read any profile.
+      allow read: if request.auth.uid == userId || 
+                     (request.auth.uid != null &&
+                      exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['tutor', 'admin']);
 
-      // Tutors/Admins can list all users to get counts for the dashboard.
-      allow list: if isTutorOrAdmin();
+      // Users can update their own profile, but they cannot change their role.
+      allow update: if request.auth.uid == userId &&
+                       request.resource.data.role == resource.data.role;
     }
 
-    // Rules for the 'submissions' collection
+    // SUBMISSIONS COLLECTION
     match /submissions/{submissionId} {
-      // Users can create submissions for themselves
-      allow create: if request.auth.uid == request.resource.data.studentId;
-      
-      // Users can read their own submissions. Tutors/Admins can read any submission.
-      allow read: if resource.data.studentId == request.auth.uid || isTutorOrAdmin();
+      // Students can create their own submissions. The studentId must match their auth uid.
+      allow create: if request.auth.uid != null && 
+                       request.auth.uid == request.resource.data.studentId;
+                       
+      // Students can read/update their own submissions. Tutors/Admins can read/update any submission.
+      allow read, update: if (request.auth.uid == resource.data.studentId) ||
+                             (request.auth.uid != null &&
+                              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['tutor', 'admin']);
 
-      // Users can update their own submissions (for drafts/resubmits). Tutors/Admins can update any submission (for grading).
-      allow update: if resource.data.studentId == request.auth.uid || isTutorOrAdmin();
-
-      // Tutors/Admins can list all submissions for the dashboard.
-      allow list: if isTutorOrAdmin();
+      // Students can delete their own submissions.
+      allow delete: if request.auth.uid == resource.data.studentId;
     }
   }
 }
