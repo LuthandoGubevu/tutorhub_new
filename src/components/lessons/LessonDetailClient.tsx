@@ -172,7 +172,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
               }) || []
             } as StructuredAnswerFormValues);
           } else if (!isStructuredLesson && docData.answer !== undefined && docData.reasoning !== undefined) {
-            form.reset({ reasoning: docData.reasoning, solution: docData.answer } as SingleAnswerFormValues);
+            form.reset({ reasoning: docData.reasoning || '', solution: docData.answer || '' } as SingleAnswerFormValues);
           }
 
           if (docData.aiFeedback) setAiFeedback(docData.aiFeedback);
@@ -209,8 +209,8 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
       const questionsForSubmission: QuestionAnswer[] = lesson.structuredQuestions!.map((sq, index) => ({
         questionId: sq.id,
         questionText: sq.text,
-        reasoning: structuredData.structuredAnswers[index].reasoning,
-        answer: structuredData.structuredAnswers[index].solution,
+        reasoning: structuredData.structuredAnswers[index].reasoning ?? null,
+        answer: structuredData.structuredAnswers[index].solution ?? null,
       }));
       return {
         ...commonPayloadBase,
@@ -222,8 +222,8 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
       const singleData = data as SingleAnswerFormValues;
       return {
         ...commonPayloadBase,
-        answer: singleData.solution,
-        reasoning: singleData.reasoning,
+        answer: singleData.solution ?? null,
+        reasoning: singleData.reasoning ?? null,
         questions: null,
       };
     }
@@ -314,8 +314,8 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
         let studentReasoningForAI: string;
 
         if (isStructuredLesson && payloadForFirestore.questions && payloadForFirestore.questions.length > 0) {
-          studentAnswerForAI = payloadForFirestore.questions[0].answer;
-          studentReasoningForAI = payloadForFirestore.questions[0].reasoning;
+          studentAnswerForAI = payloadForFirestore.questions[0].answer || "No answer provided.";
+          studentReasoningForAI = payloadForFirestore.questions[0].reasoning || "No reasoning provided.";
         } else if (!isStructuredLesson && payloadForFirestore.answer) {
           studentAnswerForAI = payloadForFirestore.answer;
           studentReasoningForAI = payloadForFirestore.reasoning!;
@@ -546,7 +546,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => form.handleSubmit(handleSaveDraft)()}
+                        onClick={() => handleSaveDraft(form.getValues())}
                         className="w-full sm:w-auto"
                         disabled={isSaveDraftButtonDisabled}
                     >
@@ -662,6 +662,3 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
 };
 
 export default LessonDetailClient;
-
-
-    

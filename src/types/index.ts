@@ -43,8 +43,8 @@ export interface Lesson {
 export interface QuestionAnswer {
   questionId: string;
   questionText: string; // Storing the text at submission time for context
-  reasoning: string;
-  answer: string;
+  reasoning: string | null;
+  answer: string | null;
 }
 
 export interface Submission {
@@ -54,9 +54,9 @@ export interface Submission {
   lessonId: string;
   lessonTitle: string;
   subject: SubjectName;
-  answer?: string; // For single-answer lessons
-  reasoning?: string; // For single-answer lessons
-  questions?: QuestionAnswer[]; // For multi-question lessons
+  answer?: string | null; // For single-answer lessons
+  reasoning?: string | null; // For single-answer lessons
+  questions?: QuestionAnswer[] | null; // For multi-question lessons
   status: 'draft' | 'submitted' | 'reviewed';
   tutorFeedback?: string | null;
   aiFeedback?: string | null;
@@ -82,4 +82,3 @@ export interface Feedback {
   comment?: string;
   submittedAt: FirebaseTimestamp | string;
 }
-
