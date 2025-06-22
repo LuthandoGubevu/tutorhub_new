@@ -285,8 +285,12 @@ const DashboardPage = () => {
                             )}
                           </div>
                         </div>
-                        <p className="text-sm mt-2 text-gray-600"><strong>Reasoning:</strong> {submission.reasoning.substring(0,100)}{submission.reasoning.length > 100 ? '...' : ''}</p>
-                        <p className="text-sm mt-1 text-gray-600"><strong>Answer:</strong> {submission.answer.substring(0,100)}{submission.answer.length > 100 ? '...' : ''}</p>
+                        {submission.reasoning && (
+                          <p className="text-sm mt-2 text-gray-600"><strong>Reasoning:</strong> {submission.reasoning.substring(0,100)}{submission.reasoning.length > 100 ? '...' : ''}</p>
+                        )}
+                        {submission.answer && (
+                          <p className="text-sm mt-1 text-gray-600"><strong>Answer:</strong> {submission.answer.substring(0,100)}{submission.answer.length > 100 ? '...' : ''}</p>
+                        )}
                         
                         {submission.tutorFeedback && (
                            <p className="text-sm mt-2 pt-2 border-t"><strong>Tutor Feedback:</strong> {submission.tutorFeedback}</p>
@@ -347,4 +351,3 @@ const DashboardPage = () => {
 };
 
 export default DashboardPage;
-
