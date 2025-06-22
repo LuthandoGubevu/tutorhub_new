@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import type { Lesson, Submission, SubjectName, QuestionAnswer, StructuredQuestionItem } from '@/types';
+import type { Lesson, Submission, SubjectName, QuestionAnswer, StructuredQuestionItem, User } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import FeedbackForm from './FeedbackForm';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, AlertTriangle, MessageSquare, Award, ListChecks, Save } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, MessageSquare, Award, ListChecks, Save, Lock } from 'lucide-react';
 import { getAIFeedback } from '@/app/actions/feedbackActions';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -30,7 +30,8 @@ import {
   doc,
   updateDoc,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  getDocs
 } from '@/lib/firebase';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
@@ -71,6 +72,11 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
   const [submittedAnswer, setSubmittedAnswer] = useState<Submission | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
 
+  // For prerequisite logic
+  const [canAccessLesson, setCanAccessLesson] = useState(true);
+  const [accessCheckLoading, setAccessCheckLoading] = useState(false);
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState('');
+
   const isStructuredLesson = !!(lesson.structuredQuestions && lesson.structuredQuestions.length > 0);
 
   const form = useForm<SingleAnswerFormValues | StructuredAnswerFormValues>({
@@ -85,9 +91,58 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
     name: "structuredAnswers" as any, // Type assertion needed for conditional field array
   });
 
-
   useEffect(() => {
+    const checkPrerequisites = async (currentUser: User, lessonToCheck: Lesson) => {
+        if (lessonToCheck.id !== 'math-alg-002' || currentUser.isAdmin) {
+            setCanAccessLesson(true);
+            return;
+        }
+
+        setAccessCheckLoading(true);
+        const db = getFirestoreDb();
+        if (!db) {
+            setAccessDeniedMessage("Could not verify lesson prerequisites. Database unavailable.");
+            setCanAccessLesson(false);
+            setAccessCheckLoading(false);
+            return;
+        }
+
+        const prerequisiteLessonId = 'math-alg-001';
+        const q = query(
+            collection(db, "submissions"),
+            where("studentId", "==", currentUser.uid),
+            where("lessonId", "==", prerequisiteLessonId)
+        );
+
+        try {
+            const querySnapshot = await getDocs(q);
+            let hasPassedPrerequisite = false;
+            querySnapshot.forEach(doc => {
+                const submission = doc.data() as Submission;
+                if (submission.status === 'reviewed' && typeof submission.grade === 'number' && submission.grade >= 70) {
+                    hasPassedPrerequisite = true;
+                }
+            });
+
+            if (hasPassedPrerequisite) {
+                setCanAccessLesson(true);
+            } else {
+                setCanAccessLesson(false);
+                setAccessDeniedMessage(`You must complete and pass Lesson 1 (Algebra) with a grade of 70% or higher to access this lesson. Please complete the prerequisite.`);
+            }
+        } catch (error) {
+            console.error("Error checking prerequisites:", error);
+            setCanAccessLesson(false);
+            setAccessDeniedMessage("An error occurred while checking for prerequisites. Please try again later.");
+        } finally {
+            setAccessCheckLoading(false);
+        }
+    };
+
+
     if (user && lesson) {
+      checkPrerequisites(user, lesson);
+
       const db = getFirestoreDb();
       if (!db) return;
 
@@ -140,14 +195,13 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
     }
   }, [lesson, user, form, toast, isStructuredLesson]);
 
-  const preparePayload = (data: SingleAnswerFormValues | StructuredAnswerFormValues): Omit<Submission, 'id' | 'timestamp'> => {
+  const preparePayload = (data: SingleAnswerFormValues | StructuredAnswerFormValues): Omit<Submission, 'id' | 'timestamp' | 'status'> => {
     const commonPayloadBase = {
       lessonId: lesson.id,
       lessonTitle: lesson.title,
       subject: lesson.subject,
-      studentId: user!.uid, // user is checked before calling this
+      studentId: user!.uid,
       studentName: user!.firstName ? `${user!.firstName} ${user!.lastName || ''}`.trim() : (user!.email || "Anonymous Student"),
-      // status will be set by the calling function (draft or submitted)
     };
 
     if (isStructuredLesson) {
@@ -161,17 +215,17 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
       return {
         ...commonPayloadBase,
         questions: questionsForSubmission,
-        answer: undefined,
-        reasoning: undefined,
-      } as Omit<Submission, 'id' | 'timestamp' | 'status'>;
+        answer: null, 
+        reasoning: null,
+      };
     } else {
       const singleData = data as SingleAnswerFormValues;
       return {
         ...commonPayloadBase,
         answer: singleData.solution,
         reasoning: singleData.reasoning,
-        questions: undefined,
-      } as Omit<Submission, 'id' | 'timestamp' | 'status'>;
+        questions: null,
+      };
     }
   };
 
@@ -330,6 +384,31 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
     isSubmitting ||
     (!form.formState.isDirty && !!submittedAnswer && submittedAnswer.status === 'draft');
 
+  if (accessCheckLoading) {
+      return (
+          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-400px)]">
+              <Loader2 className="h-12 w-12 animate-spin text-brand-purple-blue" />
+              <p className="mt-4 text-lg text-muted-foreground">Checking lesson access...</p>
+          </div>
+      );
+  }
+
+  if (!canAccessLesson) {
+      return (
+          <Alert variant="destructive" className="max-w-2xl mx-auto mt-10">
+              <Lock className="h-4 w-4" />
+              <AlertTitle>Access Denied</AlertTitle>
+              <AlertDescription>
+                  {accessDeniedMessage}
+                  <div className="mt-4">
+                      <Button asChild>
+                          <Link href="/dashboard">Back to Dashboard</Link>
+                      </Button>
+                  </div>
+              </AlertDescription>
+          </Alert>
+      );
+  }
 
   return (
     <div className="space-y-8">
@@ -584,3 +663,5 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
 
 export default LessonDetailClient;
 
+
+    
