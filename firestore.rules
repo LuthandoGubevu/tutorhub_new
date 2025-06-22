@@ -1,0 +1,42 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Function to check if the requesting user is a tutor or admin
+    function isTutorOrAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['tutor', 'admin'];
+    }
+
+    // Rules for the 'users' collection
+    match /users/{userId} {
+      // Users can create their own user document when they register
+      allow create: if request.auth.uid == userId;
+      
+      // Users can read their own data. Tutors/Admins can read any user's data.
+      allow read: if request.auth.uid == userId || isTutorOrAdmin();
+
+      // Users can update their own data.
+      allow update: if request.auth.uid == userId;
+
+      // Tutors/Admins can list all users to get counts for the dashboard.
+      allow list: if isTutorOrAdmin();
+    }
+
+    // Rules for the 'submissions' collection
+    match /submissions/{submissionId} {
+      // Users can create submissions for themselves
+      allow create: if request.auth.uid == request.resource.data.studentId;
+      
+      // Users can read their own submissions. Tutors/Admins can read any submission.
+      allow read: if resource.data.studentId == request.auth.uid || isTutorOrAdmin();
+
+      // Users can update their own submissions (for drafts/resubmits). Tutors/Admins can update any submission (for grading).
+      allow update: if resource.data.studentId == request.auth.uid || isTutorOrAdmin();
+
+      // Tutors/Admins can list all submissions for the dashboard.
+      allow list: if isTutorOrAdmin();
+    }
+  }
+}
