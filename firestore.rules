@@ -3,92 +3,40 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // =================================
-    // Helper Functions
-    // =================================
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    // Safely get the user's role from their user document in Firestore.
-    // Using .get() with a default value prevents the rule from crashing if the
-    // document or 'role' field doesn't exist. This is crucial for new users.
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '');
-    }
-
-    function isStudent() {
-      return isSignedIn() && getUserRole() == 'student';
-    }
-
-    function isTutor() {
-      // In this app, 'admin' and 'tutor' roles have the same privileges.
-      return isSignedIn() && (getUserRole() == 'tutor' || getUserRole() == 'admin');
-    }
-
-    // =================================
-    // Collection Rules
-    // =================================
-
-    // USERS COLLECTION
-    match /users/{userId} {
-      // Allow users to create their own document when they register or sign in for the first time.
-      // This is critical for both email/password and Google Sign-In flows.
-      allow create: if isOwner(userId) &&
-                       request.resource.data.uid == userId &&
-                       // Allow creation of student or tutor/admin roles.
-                       (request.resource.data.role == 'student' || request.resource.data.role == 'tutor' || request.resource.data.role == 'admin');
-
-      // Allow users to read their own profile. Tutors can read any user profile.
-      allow read: if isOwner(userId) || isTutor();
-
-      // Allow users to update their own profile, but NOT change their role.
-      allow update: if isOwner(userId) && request.resource.data.role == resource.data.role;
-
-      // Do not allow deletion of user profiles.
-      allow delete: if false;
-    }
-
-    // SUBMISSIONS COLLECTION
-    match /submissions/{submissionId} {
-      // A student can create a submission for themselves.
-      allow create: if isStudent() && request.resource.data.studentId == request.auth.uid;
-
-      // A student can read their own submissions. A tutor can read any submission.
-      allow read: if (isStudent() && resource.data.studentId == request.auth.uid) || isTutor();
-
-      // A student can update their submission if its status is 'draft' or 'submitted', but not 'reviewed'.
-      // This fixes a mismatch between the UI and the previous rules.
-      // A tutor can update any submission (e.g., to add feedback/grade).
-      allow update: if (isStudent() && isOwner(resource.data.studentId) && resource.data.status != 'reviewed') || isTutor();
-      
-      // Do not allow deletion of submissions.
-      allow delete: if false;
-    }
-
-    // LESSONS: Publicly readable, writable only by tutors.
-    match /lessons/{lessonId} {
-      allow read: if true;
-      allow write: if isTutor();
+    
+    // --- Helper Function ---
+    // Safely checks if the currently authenticated user has the specified role.
+    function isRole(role) {
+      let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userDocPath) && get(userDocPath).data.role == role;
     }
     
-    // BOOKINGS: Users can manage their own bookings.
-    match /bookings/{bookingId} {
-      allow create: if isStudent() && request.resource.data.userId == request.auth.uid;
-      allow read, update: if (isStudent() && resource.data.userId == request.auth.uid) || isTutor();
-      allow delete: if false;
+    // --- User Rules ---
+    match /users/{userId} {
+      // Allow a user to create their own user document.
+      allow create: if request.auth.uid == userId;
+      
+      // Allow a user to read/update their own doc.
+      // Allow tutors to read any user doc.
+      allow read, update: if request.auth.uid == userId || isRole('tutor');
     }
 
-    // FEEDBACK: Users can create their own feedback.
-    match /feedback/{feedbackId} {
-      allow create: if isStudent() && request.resource.data.userId == request.auth.uid;
-      allow read: if (isStudent() && resource.data.userId == request.auth.uid) || isTutor();
-      allow write: if isTutor(); // Tutors might moderate feedback
+    // --- Submission Rules ---
+    match /submissions/{submissionId} {
+      // A user with the 'student' role can create a submission for themselves.
+      allow create: if isRole('student') && request.auth.uid == request.resource.data.studentId;
+      
+      // The owner (student) or any tutor can read.
+      allow read: if request.auth.uid == resource.data.studentId || isRole('tutor');
+                  
+      // Update Rules:
+      allow update: if 
+        // A tutor can update any submission.
+        isRole('tutor') || 
+        // A student can update THEIR OWN submission IF its CURRENT status is NOT 'reviewed'.
+        (isRole('student') && 
+         request.auth.uid == resource.data.studentId && 
+         resource.data.status != 'reviewed');
     }
   }
 }
