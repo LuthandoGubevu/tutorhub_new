@@ -119,7 +119,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
             let hasPassedPrerequisite = false;
             querySnapshot.forEach(doc => {
                 const submission = doc.data() as Submission;
-                if (submission.status === 'reviewed' && typeof submission.grade === 'number' && submission.grade >= 70) {
+                if (submission.status === 'reviewed' && typeof submission.grade === 'number' && submission.grade >= 75) {
                     hasPassedPrerequisite = true;
                 }
             });
@@ -128,7 +128,7 @@ const LessonDetailClient: React.FC<LessonDetailClientProps> = ({ lesson }) => {
                 setCanAccessLesson(true);
             } else {
                 setCanAccessLesson(false);
-                setAccessDeniedMessage(`You must complete and pass Lesson 1 (Algebra) with a grade of 70% or higher to access this lesson. Please complete the prerequisite.`);
+                setAccessDeniedMessage(`You must complete and pass Lesson 1 (Algebra) with a grade of 75% or higher to access this lesson. Please complete the prerequisite.`);
             }
         } catch (error) {
             console.error("Error checking prerequisites:", error);

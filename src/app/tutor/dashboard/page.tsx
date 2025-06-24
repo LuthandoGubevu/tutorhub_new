@@ -29,6 +29,7 @@ import {
   where
 } from '@/lib/firebase';
 import { formatDistanceToNow } from 'date-fns';
+import { checkLessonUnlock } from '@/ai/flows/check-lesson-unlock-flow';
 
 const TutorDashboardPage = () => {
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
@@ -141,11 +142,34 @@ const TutorDashboardPage = () => {
       if (tutorComment) {
         updatePayload.tutorFeedback = tutorComment;
       }
+      
+      let numericGradeForCheck: number | undefined;
       if (currentGrade || currentGrade === 0) {
-        updatePayload.grade = currentGrade;
+        const numericGrade = parseFloat(String(currentGrade));
+        if (!isNaN(numericGrade)) {
+          updatePayload.grade = numericGrade;
+          numericGradeForCheck = numericGrade;
+        } else {
+          updatePayload.grade = currentGrade; // Save as string if not a number (e.g., "A+")
+        }
       }
 
       await updateDoc(submissionRef, updatePayload);
+
+      // Call the AI flow to check for lesson unlock, but don't block UI
+      if (numericGradeForCheck !== undefined) {
+        checkLessonUnlock({
+          studentId: selectedSubmission.studentId,
+          currentLessonId: selectedSubmission.lessonId,
+          grade: numericGradeForCheck,
+        }).then(result => {
+          console.log("Lesson unlock check:", result.message);
+          // In a real app, you might use this message for a notification
+        }).catch(error => {
+          console.error("Error checking lesson unlock status:", error);
+        });
+      }
+
       toast({ title: "Review Submitted", description: `Review for ${selectedSubmission.lessonTitle} saved.`, className: "bg-brand-green text-white" });
       setSelectedSubmission(null); 
       setTutorComment('');

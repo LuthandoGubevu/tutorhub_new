@@ -34,7 +34,7 @@ const checkLessonUnlockFlow = ai.defineFlow(
     outputSchema: CheckLessonUnlockOutputSchema,
   },
   async (input) => {
-    if (input.grade >= 70) {
+    if (input.grade >= 75) {
       return {
         unlockNextLesson: true,
         message: "Great work! You've unlocked the next lesson."
@@ -42,7 +42,7 @@ const checkLessonUnlockFlow = ai.defineFlow(
     } else {
       return {
         unlockNextLesson: false,
-        message: "You need at least 70% to unlock the next lesson. Please revise and resubmit your work."
+        message: "You need at least 75% to unlock the next lesson. Please revise and resubmit your work."
       };
     }
   }
