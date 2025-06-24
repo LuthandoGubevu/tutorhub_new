@@ -25,8 +25,8 @@ import {
   updateDoc,
   serverTimestamp,
   Timestamp,
-  getDocs, // Added getDocs
-  where // Added where
+  getDocs,
+  where
 } from '@/lib/firebase';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -42,7 +42,7 @@ const TutorDashboardPage = () => {
     pendingReviews: 0,
     reviewedCount: 0,
     activeStudents: 0,
-    registeredStudents: 0, // New field for registered students
+    registeredStudents: 0,
   });
 
   useEffect(() => {
@@ -53,27 +53,21 @@ const TutorDashboardPage = () => {
       return;
     }
 
-    let unsubscribeSubmissions = () => {}; // Initialize to a no-op
+    let unsubscribeSubmissions = () => {};
 
     const fetchData = async () => {
-      setLoadingSubmissions(true); // Set loading true at the start of combined fetch
+      setLoadingSubmissions(true);
       let fetchedRegisteredStudents = 0;
 
       try {
-        // Fetch registered students
         const usersQuery = query(collection(db, "users"), where("role", "==", "student"));
         const usersSnapshot = await getDocs(usersQuery);
         fetchedRegisteredStudents = usersSnapshot.size;
-        // Update metrics with registered students count immediately if needed, or wait for submissions
-        // For now, we'll update it within handleSubmissionsUpdate or after onSnapshot setup
-
       } catch (error) {
         console.error("Error fetching registered students:", error);
         toast({ title: "Error", description: "Could not fetch registered student count.", variant: "destructive" });
-        // Potentially set loadingSubmissions false here if this is critical and submissions part shouldn't run
       }
 
-      // This function will be called by onSnapshot for submissions
       const handleSubmissionsUpdate = (submissionDocs: Submission[]) => {
         const total = submissionDocs.length;
         const pending = submissionDocs.filter(sub => sub.status === 'submitted').length;
@@ -85,13 +79,12 @@ const TutorDashboardPage = () => {
           pendingReviews: pending,
           reviewedCount: reviewed,
           activeStudents: activeStudentIds,
-          registeredStudents: fetchedRegisteredStudents, // Use the count fetched earlier
+          registeredStudents: fetchedRegisteredStudents,
         });
         setSubmissions(submissionDocs);
-        setLoadingSubmissions(false); // Set loading to false after all data is processed
+        setLoadingSubmissions(false);
       };
       
-      // Setup onSnapshot for submissions
       const submissionsQuery = query(collection(db, "submissions"), orderBy("timestamp", "desc"));
       unsubscribeSubmissions = onSnapshot(submissionsQuery, (querySnapshot) => {
         const fetchedSubmissionsData: Submission[] = [];
@@ -102,7 +95,7 @@ const TutorDashboardPage = () => {
       }, (error) => {
         console.error("Error fetching submissions: ", error);
         toast({ title: "Error", description: "Could not fetch submissions.", variant: "destructive" });
-        setMetrics(prevMetrics => ({ ...prevMetrics, registeredStudents: fetchedRegisteredStudents })); // Still set registered students if submissions fail
+        setMetrics(prevMetrics => ({ ...prevMetrics, registeredStudents: fetchedRegisteredStudents }));
         setLoadingSubmissions(false);
       });
     };
@@ -120,7 +113,7 @@ const TutorDashboardPage = () => {
     { title: 'Pending Reviews', value: metrics.pendingReviews, icon: <Clock className="h-5 w-5 text-muted-foreground" /> },
     { title: 'Reviewed Count', value: metrics.reviewedCount, icon: <CheckCircle className="h-5 w-5 text-muted-foreground" /> },
     { title: 'Active Students', value: metrics.activeStudents, icon: <Users className="h-5 w-5 text-muted-foreground" /> },
-    { title: 'Total Registered Students', value: metrics.registeredStudents, icon: <Users2 className="h-5 w-5 text-muted-foreground" /> }, // New card
+    { title: 'Total Registered Students', value: metrics.registeredStudents, icon: <Users2 className="h-5 w-5 text-muted-foreground" /> },
   ];
 
   const handleReviewSubmit = async () => {
@@ -148,7 +141,7 @@ const TutorDashboardPage = () => {
       if (tutorComment) {
         updatePayload.tutorFeedback = tutorComment;
       }
-      if (currentGrade || currentGrade === 0) { // Allow 0 as a grade
+      if (currentGrade || currentGrade === 0) {
         updatePayload.grade = currentGrade;
       }
 
@@ -270,18 +263,48 @@ const TutorDashboardPage = () => {
                             </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto px-1">
-                            <Card>
-                              <CardHeader><CardTitle className="text-base">Question</CardTitle></CardHeader>
-                              <CardContent><p className="whitespace-pre-wrap">{getLessonById(selectedSubmission.lessonId)?.question || "Question not found."}</p></CardContent>
-                            </Card>
-                             <Card>
-                              <CardHeader><CardTitle className="text-base">Student's Reasoning</CardTitle></CardHeader>
-                              <CardContent><p className="whitespace-pre-wrap">{selectedSubmission.reasoning}</p></CardContent>
-                            </Card>
-                             <Card>
-                              <CardHeader><CardTitle className="text-base">Student's Answer</CardTitle></CardHeader>
-                              <CardContent><p className="whitespace-pre-wrap">{selectedSubmission.answer}</p></CardContent>
-                            </Card>
+                            {/* FIX: Conditional rendering for structured vs single answers */}
+                            {selectedSubmission.questions && selectedSubmission.questions.length > 0 ? (
+                              <>
+                                <Card>
+                                  <CardHeader><CardTitle className="text-base">Main Question Prompt</CardTitle></CardHeader>
+                                  <CardContent><p className="whitespace-pre-wrap">{getLessonById(selectedSubmission.lessonId)?.question || "Question not found."}</p></CardContent>
+                                </Card>
+                                {selectedSubmission.questions.map((q, index) => (
+                                  <Card key={index} className="bg-gray-50">
+                                    <CardHeader>
+                                      <CardTitle className="text-base">Sub-Question: {q.questionText}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                      <div>
+                                        <h4 className="font-semibold text-sm">Student's Reasoning</h4>
+                                        <p className="whitespace-pre-wrap text-sm">{q.reasoning || "No reasoning provided."}</p>
+                                      </div>
+                                      <div>
+                                        <h4 className="font-semibold text-sm">Student's Answer</h4>
+                                        <p className="whitespace-pre-wrap text-sm">{q.answer || "No answer provided."}</p>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                              </>
+                            ) : (
+                              <>
+                                <Card>
+                                  <CardHeader><CardTitle className="text-base">Question</CardTitle></CardHeader>
+                                  <CardContent><p className="whitespace-pre-wrap">{getLessonById(selectedSubmission.lessonId)?.question || "Question not found."}</p></CardContent>
+                                </Card>
+                                <Card>
+                                  <CardHeader><CardTitle className="text-base">Student's Reasoning</CardTitle></CardHeader>
+                                  <CardContent><p className="whitespace-pre-wrap">{selectedSubmission.reasoning || "No reasoning provided."}</p></CardContent>
+                                </Card>
+                                <Card>
+                                  <CardHeader><CardTitle className="text-base">Student's Answer</CardTitle></CardHeader>
+                                  <CardContent><p className="whitespace-pre-wrap">{selectedSubmission.answer || "No answer provided."}</p></CardContent>
+                                </Card>
+                              </>
+                            )}
+
                             {selectedSubmission.aiFeedback && (
                                <Card className="bg-purple-50 border-purple-200">
                                 <CardHeader><CardTitle className="text-base text-purple-700">AI Feedback</CardTitle></CardHeader>
@@ -344,6 +367,4 @@ const TutorDashboardPage = () => {
 };
 
 export default TutorDashboardPage;
-    
-
     
