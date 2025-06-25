@@ -1,3 +1,4 @@
+
 // src/components/layout/Header.tsx
 "use client";
 
@@ -11,6 +12,9 @@ import {
   SheetContent,
   SheetTrigger,
   SheetClose,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
 } from "@/components/ui/sheet";
 
 const Header = () => {
@@ -96,14 +100,19 @@ const Header = () => {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="bg-brand-navy text-white border-brand-purple-blue w-[250px] sm:w-[300px] p-0 flex flex-col">
-                <div className="p-4 border-b border-brand-purple-blue/50">
-                   <SheetClose asChild>
-                     <Link href="/" className="flex items-center space-x-2">
-                      <Atom size={28} className="text-brand-purple-blue" />
-                      <span className="font-headline text-xl font-semibold">TutorHub</span>
-                     </Link>
-                   </SheetClose>
-                </div>
+                <SheetHeader className="p-4 border-b border-brand-purple-blue/50">
+                  <SheetTitle asChild>
+                    <SheetClose asChild>
+                      <Link href="/" className="flex items-center space-x-2">
+                        <Atom size={28} className="text-brand-purple-blue" />
+                        <span className="font-headline text-xl font-semibold">TutorHub</span>
+                      </Link>
+                    </SheetClose>
+                  </SheetTitle>
+                  <SheetDescription className="sr-only">
+                    A navigation menu for the TutorHub application.
+                  </SheetDescription>
+                </SheetHeader>
                 <nav className="flex-grow p-4 space-y-2">
                   {displayedLinks.map(link => (
                     <SheetClose asChild key={link.href}>
