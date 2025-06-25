@@ -256,7 +256,7 @@ const TutorDashboardPage = () => {
                         <span className="text-xs text-muted-foreground">N/A</span>
                       )}
                     </TableCell>
-                    <TableCell className="max-w-xs truncate">{submission.answer}</TableCell>
+                    <TableCell className="max-w-xs truncate">{submission.answer || (submission.questions && submission.questions[0]?.answer)}</TableCell>
                     <TableCell className="text-right">
                        <Dialog open={selectedSubmission?.id === submission.id} onOpenChange={(open) => {
                            if (!open) {
