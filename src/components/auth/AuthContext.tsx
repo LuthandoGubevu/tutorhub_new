@@ -340,11 +340,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (loading) return; 
 
     const publicPaths = ['/', '/login', '/register'];
-    const isPublicLessonPath = pathname.startsWith('/lessons') || pathname.startsWith('/lesson/');
     const isAuthPage = pathname === '/login' || pathname === '/register';
 
     if (!user) { 
-      if (!publicPaths.includes(pathname) && !isPublicLessonPath && !isAuthPage) {
+      if (!publicPaths.includes(pathname) && !isAuthPage) {
         router.push('/login');
       }
     } else { 

@@ -22,27 +22,27 @@ const Header = () => {
   const pathname = usePathname();
 
   const navLinks = [
-    { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: false },
-    { href: '/lessons', label: 'Lessons', icon: <BookOpen className="mr-2 h-4 w-4" />, authRequired: false, adminOnly: false },
-    { href: '/book-session', label: 'Book Session', icon: <CalendarDays className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: false },
-    { href: '/tutor/dashboard', label: 'Tutor Admin', icon: <ShieldCheck className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: true },
+    { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: false, studentOnly: true },
+    { href: '/lessons', label: 'Lessons', icon: <BookOpen className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: false, studentOnly: false },
+    { href: '/book-session', label: 'Book Session', icon: <CalendarDays className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: false, studentOnly: true },
+    { href: '/tutor/dashboard', label: 'Tutor Admin', icon: <ShieldCheck className="mr-2 h-4 w-4" />, authRequired: true, adminOnly: true, studentOnly: false },
   ];
 
   const getDisplayedNavLinks = () => {
     if (loading) return [];
     
-    // Not logged in
     if (!user) {
+        // Guest users see no navigation links from this list
         return navLinks.filter(link => !link.authRequired);
     }
 
-    // Logged in as Admin
     if (user.isAdmin) {
-        return navLinks.filter(link => link.adminOnly || !link.authRequired);
+        // Admins/Tutors see links that are not exclusively for students
+        return navLinks.filter(link => link.authRequired && !link.studentOnly);
     }
 
-    // Logged in as Student
-    return navLinks.filter(link => !link.adminOnly);
+    // Students see all authenticated links that are not admin-only
+    return navLinks.filter(link => link.authRequired && !link.adminOnly);
   };
 
   const displayedLinks = getDisplayedNavLinks();
