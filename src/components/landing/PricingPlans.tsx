@@ -11,6 +11,7 @@ const plans = [
     period: '/month',
     features: ['Access to all lessons in 1 subject', 'AI Tutor Support', 'Answer Tracking', 'Session Booking'],
     cta: 'Choose Plan',
+    href: '/register',
     bgColor: 'bg-white',
     textColor: 'text-brand-navy',
     borderColor: 'border-gray-200',
@@ -22,6 +23,7 @@ const plans = [
     period: '/month',
     features: ['Access to all lessons in 2 subjects (Math & Physics)', 'AI Tutor Support', 'Answer Tracking', 'Session Booking', 'Priority Support'],
     cta: 'Choose Plan',
+    href: 'https://paystack.shop/pay/m6lz5uz1r2',
     bgColor: 'bg-brand-navy',
     textColor: 'text-white',
     borderColor: 'border-brand-purple-blue',
@@ -61,7 +63,7 @@ const PricingPlans = () => {
               </CardContent>
               <CardFooter>
                 <Button className={`w-full font-semibold ${plan.buttonClass}`} asChild>
-                   <Link href="/register">{plan.cta}</Link>
+                   <Link href={plan.href} target={plan.href.startsWith('http') ? '_blank' : '_self'}>{plan.cta}</Link>
                 </Button>
               </CardFooter>
             </Card>
