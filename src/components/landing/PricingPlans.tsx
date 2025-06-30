@@ -11,7 +11,7 @@ const plans = [
     period: '/month',
     features: ['Access to all lessons in 1 subject', 'AI Tutor Support', 'Answer Tracking', 'Session Booking'],
     cta: 'Choose Plan',
-    href: '/register',
+    href: 'https://paystack.shop/pay/yaag5611yp',
     bgColor: 'bg-white',
     textColor: 'text-brand-navy',
     borderColor: 'border-gray-200',
