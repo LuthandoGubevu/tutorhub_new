@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/components/auth/AuthContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import InstallPWA from '@/components/pwa/InstallPWA';
 
 const APP_NAME = "TutorHub Online Academy";
 const APP_DEFAULT_TITLE = "TutorHub Online Academy";
@@ -59,7 +60,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
-        <meta name="theme-color" content="#0B2942" />
+        <meta name="theme-color" content="#4F46E5" />
       </head>
       <body className="font-body antialiased flex flex-col min-h-screen">
         <AuthProvider>
@@ -69,6 +70,7 @@ export default function RootLayout({
           </main>
           <Footer />
           <Toaster />
+          <InstallPWA />
         </AuthProvider>
       </body>
     </html>
