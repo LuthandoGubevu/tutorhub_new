@@ -1,7 +1,6 @@
-
 // src/lib/firebase.ts
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
+import { getAuth, type Auth, browserSessionPersistence, setPersistence } from "firebase/auth";
 import { 
   getFirestore, 
   type Firestore,
@@ -22,7 +21,9 @@ import {
   writeBatch,
   getDocs, // Ensure getDocs is imported here
   connectFirestoreEmulator,
-  enableIndexedDbPersistence
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
 } from "firebase/firestore";
 
 // Your web app's Firebase configuration
@@ -56,7 +57,14 @@ function initializeFirebaseInstances() {
 
     if (appInstance && !authInstance) {
       try {
-        authInstance = getAuth(appInstance);
+        const auth = getAuth(appInstance);
+        // Use session persistence to avoid cross-origin storage issues
+        setPersistence(auth, browserSessionPersistence).then(() => {
+          authInstance = auth;
+        }).catch((error) => {
+          console.error("Firebase Auth: Could not set persistence.", error);
+          authInstance = auth; // Fallback to default
+        });
       } catch (e) {
         console.error("Firebase error getting Auth instance:", e);
         authInstance = null;
@@ -65,16 +73,10 @@ function initializeFirebaseInstances() {
 
     if (appInstance && !dbInstance) {
       try {
-        dbInstance = getFirestore(appInstance);
-        // Optional: Enable offline persistence for Firestore
-        enableIndexedDbPersistence(dbInstance)
-          .catch((err) => {
-            if (err.code === 'failed-precondition') {
-              console.warn("Firestore: Multiple tabs open, offline persistence may not be enabled.");
-            } else if (err.code === 'unimplemented') {
-              console.warn("Firestore: Offline persistence is not supported in this browser.");
-            }
-          });
+        // Use initializeFirestore for modern cache settings
+        dbInstance = initializeFirestore(appInstance, {
+          localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+        });
       } catch (e) {
         console.error("Firebase error getting Firestore instance:", e);
         dbInstance = null;
